@@ -1,3 +1,7 @@
+-f https://download.pytorch.org/whl/cu116
+torch
+-f https://download.pytorch.org/whl/cu116
+torchvision
 numpy
 python-socketio
 aiohttp
@@ -11,3 +15,5 @@ gym
 zstd
 torch-optimizer
 timm
+pandas
+

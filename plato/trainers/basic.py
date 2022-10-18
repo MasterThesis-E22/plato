@@ -11,6 +11,7 @@ import re
 import time
 
 import torch
+import torchmetrics
 from plato.callbacks.handler import CallbackHandler
 from plato.callbacks.trainer import PrintProgressCallback
 from plato.config import Config
@@ -36,7 +37,7 @@ class Trainer(base.Trainer):
         self.current_round = 0
 
         # Starting from the default trainer callback class, add all supplied trainer callbacks
-        self.callbacks = [PrintProgressCallback]
+        self.callbacks = []
         if callbacks is not None:
             self.callbacks.extend(callbacks)
         self.callback_handler = CallbackHandler(self.callbacks)
@@ -199,6 +200,11 @@ class Trainer(base.Trainer):
 
                 outputs = self.model(examples)
 
+
+                if Config().trainer.loss_criterion == "BCEWithLogitsLoss":
+                    labels = labels.float()
+                    outputs = outputs.squeeze(dim=1)
+
                 loss = _loss_criterion(outputs, labels)
                 self._loss_tracker.update(loss, labels.size(0))
 
@@ -247,7 +253,7 @@ class Trainer(base.Trainer):
         self.train_run_end(config)
         self.callback_handler.call_event("on_train_run_end", self, config)
 
-    def train(self, trainset, sampler, **kwargs) -> float:
+    def train(self, trainset, sampler, **kwargs) -> (float, float):
         """The main training loop in a federated learning workload.
 
         Arguments:
@@ -296,8 +302,8 @@ class Trainer(base.Trainer):
             toc = time.perf_counter()
 
         training_time = toc - tic
-
-        return training_time
+        train_loss = self.run_history.get_metric_values('train_loss')[0]
+        return training_time, train_loss
 
     def test_process(self, config, testset, sampler=None, **kwargs):
         """The testing loop, run in a separate process with a new CUDA context,
@@ -318,9 +324,9 @@ class Trainer(base.Trainer):
 
         try:
             if sampler is None:
-                accuracy = self.test_model(config, testset, **kwargs)
+                loss, accuracy, precision, recall = self.test_model(config, testset, **kwargs)
             else:
-                accuracy = self.test_model(config, testset, sampler.get(), **kwargs)
+                loss, accuracy, precision, recall = self.test_model(config, testset, sampler.get(), **kwargs)
 
         except Exception as testing_exception:
             logging.info("Testing on client #%d failed.", self.client_id)
@@ -330,12 +336,21 @@ class Trainer(base.Trainer):
 
         if "max_concurrency" in config:
             model_name = config["model_name"]
-            filename = f"{model_name}_{self.client_id}_{config['run_id']}.acc"
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.accuracy"
             self.save_accuracy(accuracy, filename)
-        else:
-            return accuracy
 
-    def test(self, testset, sampler=None, **kwargs) -> float:
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.loss"
+            self.save_loss(loss, filename)
+
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.precision"
+            self.save_precision(precision, filename)
+
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.recall"
+            self.save_recall(recall, filename)
+        else:
+            return loss, accuracy, precision, recall
+
+    def test(self, testset, sampler=None, **kwargs) -> (float, float):
         """Testing the model using the provided test dataset.
 
         Arguments:
@@ -360,9 +375,25 @@ class Trainer(base.Trainer):
             try:
                 model_name = Config().trainer.model_name
                 filename = (
-                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.acc"
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.accuracy"
                 )
                 accuracy = self.load_accuracy(filename)
+
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.loss"
+                )
+                loss = self.load_loss(filename)
+
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.precision"
+                )
+                precision = self.load_precision(filename)
+
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.recall"
+                )
+                recall = self.load_recall(filename)
+
             except OSError as error:  # the model file is not found, training failed
                 raise ValueError(
                     f"Testing on client #{self.client_id} failed."
@@ -370,9 +401,9 @@ class Trainer(base.Trainer):
 
             self.pause_training()
         else:
-            accuracy = self.test_process(config, testset, **kwargs)
+            loss, accuracy, precision, recall = self.test_process(config, testset, **kwargs)
 
-        return accuracy
+        return loss, accuracy, precision, recall
 
     def obtain_model_update(self, wall_time):
         """
@@ -445,19 +476,45 @@ class Trainer(base.Trainer):
 
         correct = 0
         total = 0
+        loss_total = 0
 
         self.model.to(self.device)
+        acc = torchmetrics.classification.BinaryAccuracy().to(self.device)
+        prec = torchmetrics.classification.BinaryPrecision().to(self.device)
+        rec = torchmetrics.classification.BinaryRecall().to(self.device)
+
         with torch.no_grad():
             for examples, labels in test_loader:
                 examples, labels = examples.to(self.device), labels.to(self.device)
 
                 outputs = self.model(examples)
 
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
 
-        return correct / total
+
+                # Loss
+                if Config().trainer.loss_criterion == "BCEWithLogitsLoss":
+                    outputs = outputs.squeeze(dim=1)
+                    loss_total += loss_criterion.get()(outputs, labels.float()).item()
+                    predicted = (outputs > 0).long()
+
+                    acc(predicted, labels)
+                    prec(predicted, labels)
+                    rec(predicted, labels)
+
+                    correct += (predicted == labels).sum().item()
+                    total += labels.size(0)
+                else:
+                    _, predicted = torch.max(outputs.data, 1)
+                    total += labels.size(0)
+                    correct += (predicted == labels).sum().item()
+
+        loss = loss_total / len(test_loader)
+        accuracy = acc.compute()
+        precision = prec.compute()
+        recall = rec.compute()
+
+        #accuracy = correct / total
+        return loss, accuracy.item(), precision.item(), recall.item()
 
     def get_optimizer(self, model):
         """Returns the optimizer."""

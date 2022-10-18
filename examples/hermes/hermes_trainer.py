@@ -38,7 +38,7 @@ class Trainer(basic.Trainer):
         # Evaluate if structured pruning should be conducted
         self.datasource = datasources_registry.get(client_id=self.client_id)
         self.testset = self.datasource.get_test_set()
-        accuracy = self.test_model(config, self.testset, None)
+        accuracy, loss = self.test_model(config, self.testset, None)
         self.pruned_amount = pruning.compute_pruned_amount(self.model, self.client_id)
 
         # Merge the incoming server payload model with the mask to create the model for training

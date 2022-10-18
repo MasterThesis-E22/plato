@@ -41,10 +41,61 @@ class Trainer(ABC):
         if filename is not None:
             accuracy_path = f"{model_path}/{filename}"
         else:
-            accuracy_path = f"{model_path}/{model_name}.acc"
+            accuracy_path = f"{model_path}/{model_name}.accuracy"
 
         with open(accuracy_path, "w", encoding="utf-8") as file:
             file.write(str(accuracy))
+
+    @staticmethod
+    def save_loss(loss, filename=None):
+        """Saving the test accuracy to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            accuracy_path = f"{model_path}/{filename}"
+        else:
+            accuracy_path = f"{model_path}/{model_name}.testloss"
+
+        with open(accuracy_path, "w", encoding="utf-8") as file:
+            file.write(str(loss))
+
+    @staticmethod
+    def save_precision(precision, filename=None):
+        """Saving the test accuracy to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            accuracy_path = f"{model_path}/{filename}"
+        else:
+            accuracy_path = f"{model_path}/{model_name}.precision"
+
+        with open(accuracy_path, "w", encoding="utf-8") as file:
+            file.write(str(precision))
+
+    @staticmethod
+    def save_recall(recall, filename=None):
+        """Saving the test accuracy to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            accuracy_path = f"{model_path}/{filename}"
+        else:
+            accuracy_path = f"{model_path}/{model_name}.recall"
+
+        with open(accuracy_path, "w", encoding="utf-8") as file:
+            file.write(str(recall))
 
     @staticmethod
     def load_accuracy(filename=None):
@@ -55,12 +106,58 @@ class Trainer(ABC):
         if filename is not None:
             accuracy_path = f"{model_path}/{filename}"
         else:
-            accuracy_path = f"{model_path}/{model_name}.acc"
+            accuracy_path = f"{model_path}/{model_name}.accuracy"
 
         with open(accuracy_path, "r", encoding="utf-8") as file:
             accuracy = float(file.read())
 
         return accuracy
+
+    @staticmethod
+    def load_loss(filename=None):
+        """Loading the loss from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            accuracy_path = f"{model_path}/{filename}"
+        else:
+            accuracy_path = f"{model_path}/{model_name}.loss"
+
+        with open(accuracy_path, "r", encoding="utf-8") as file:
+            loss = float(file.read())
+
+        return loss
+
+    @staticmethod
+    def load_precision(filename=None):
+        """Loading the loss from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            accuracy_path = f"{model_path}/{filename}"
+        else:
+            accuracy_path = f"{model_path}/{model_name}.precision"
+
+        with open(accuracy_path, "r", encoding="utf-8") as file:
+            precision = float(file.read())
+        return precision
+
+    @staticmethod
+    def load_recall(filename=None):
+        """Loading the loss from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            accuracy_path = f"{model_path}/{filename}"
+        else:
+            accuracy_path = f"{model_path}/{model_name}.recall"
+
+        with open(accuracy_path, "r", encoding="utf-8") as file:
+            recall = float(file.read())
+        return recall
 
     def pause_training(self):
         """Remove files of running trainers."""
