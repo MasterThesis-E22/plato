@@ -124,7 +124,7 @@ class Client(base.Client):
         try:
             if hasattr(self.trainer, "current_round"):
                 self.trainer.current_round = self.current_round
-            training_time = self.trainer.train(self.trainset, self.sampler)
+            training_time, train_loss = self.trainer.train(self.trainset, self.sampler)
         except ValueError as exc:
             logging.info(
                 fonts.colourize(f"[{self}] Error occurred during training: {exc}")
@@ -139,7 +139,7 @@ class Client(base.Client):
             not hasattr(Config().clients, "test_interval")
             or self.current_round % Config().clients.test_interval == 0
         ):
-            accuracy = self.trainer.test(self.testset, self.testset_sampler)
+            test_loss, accuracy, precision, recall = self.trainer.test(self.testset, self.testset_sampler)
 
             if accuracy == -1:
                 # The testing process failed, disconnect from the server
@@ -171,6 +171,10 @@ class Client(base.Client):
             training_time=training_time,
             comm_time=comm_time,
             update_response=False,
+            test_loss=test_loss,
+            train_loss=train_loss,
+            precision=precision,
+            recall=recall
         )
 
         self._report = self.customize_report(report)

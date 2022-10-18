@@ -110,13 +110,14 @@ class Server(base.Server):
 
         # Initialize the test accuracy csv file if clients compute locally
         if hasattr(Config().clients, "do_test") and Config().clients.do_test:
-            accuracy_csv_file = (
-                f"{Config().params['result_path']}/{os.getpid()}_accuracy.csv"
+            client_csv_file = (
+                f"{Config().params['result_path']}/{os.getpid()}_clients.csv"
             )
-            accuracy_headers = ["round", "client_id", "accuracy"]
+            accuracy_headers = ["round", "client_id", "train_loss", "test_loss", "accuracy", "precision", "recall"]
             csv_processor.initialize_csv(
-                accuracy_csv_file, accuracy_headers, Config().params["result_path"]
+                client_csv_file, accuracy_headers, Config().params["result_path"]
             )
+
 
     def init_trainer(self):
         """Setting up the global model, trainer, and algorithm."""
@@ -205,10 +206,28 @@ class Server(base.Server):
         # Testing the global model accuracy
         if hasattr(Config().server, "do_test") and not Config().server.do_test:
             # Compute the average accuracy from client reports
-            self.accuracy = self.accuracy_averaging(self.updates)
+            self.accuracy, self.test_loss, self.train_loss, self.precision, self.recall = self.metric_averaging(self.updates)
+
             logging.info(
                 "[%s] Average client accuracy: %.2f%%.", self, 100 * self.accuracy
             )
+
+            logging.info(
+                "[%s] Average client test loss: %.2f", self,  self.test_loss
+            )
+
+            logging.info(
+                "[%s] Average client train loss: %.2f", self, self.train_loss
+            )
+
+            logging.info(
+                "[%s] Average client precision: %.2f", self, self.precision
+            )
+
+            logging.info(
+                "[%s] Average client recall: %.2f", self, self.recall
+            )
+
         else:
             # Testing the updated model directly at the server
 
@@ -236,46 +255,71 @@ class Server(base.Server):
 
         if hasattr(Config().clients, "do_test") and Config().clients.do_test:
             # Updates the log for client test accuracies
-            accuracy_csv_file = (
-                f"{Config().params['result_path']}/{os.getpid()}_accuracy.csv"
+            client_csv_file = (
+                f"{Config().params['result_path']}/{os.getpid()}_clients.csv"
             )
 
             for update in self.updates:
-                accuracy_row = [
+                row = [
                     self.current_round,
                     update.client_id,
+                    update.report.train_loss,
+                    update.report.test_loss,
                     update.report.accuracy,
+                    update.report.precision,
+                    update.report.recall,
                 ]
-                csv_processor.write_csv(accuracy_csv_file, accuracy_row)
+
+                csv_processor.write_csv(client_csv_file, row)
 
     def get_record_items_values(self):
         """Get values will be recorded in result csv file."""
         return {
             "round": self.current_round,
-            "accuracy": self.accuracy,
             "elapsed_time": self.wall_time - self.initial_wall_time,
             "comm_time": max(update.report.comm_time for update in self.updates),
             "round_time": max(
-                update.report.training_time + update.report.comm_time
-                for update in self.updates
+                update.report.training_time + update.report.comm_time for update in self.updates
             ),
             "comm_overhead": self.comm_overhead,
+            "train_loss": self.train_loss,
+            "test_loss": self.test_loss,
+            "accuracy": self.accuracy,
+            "precision": self.precision,
+            "recall": self.recall
         }
 
     @staticmethod
-    def accuracy_averaging(updates):
+    def metric_averaging(updates):
         """Compute the average accuracy across clients."""
         # Get total number of samples
         total_samples = sum(update.report.num_samples for update in updates)
 
         # Perform weighted averaging
         accuracy = 0
+        test_loss = 0
+        train_loss = 0
+        precision = 0
+        recall = 0
         for update in updates:
             accuracy += update.report.accuracy * (
                 update.report.num_samples / total_samples
             )
+            test_loss += update.report.test_loss * (
+                update.report.num_samples / total_samples
+            )
+            train_loss += update.report.train_loss * (
+                    update.report.num_samples / total_samples
+            )
+            precision += update.report.precision * (
+                    update.report.num_samples / total_samples
+            )
+            recall += update.report.recall * (
+                    update.report.num_samples / total_samples
+            )
 
-        return accuracy
+
+        return accuracy, test_loss, train_loss, precision, recall
 
     def weights_received(self, weights_received):
         """

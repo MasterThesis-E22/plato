@@ -41,6 +41,7 @@ else:
         feature,
         qoenflx,
         celeba,
+        embryos
     )
 
     registered_datasources = {
@@ -60,7 +61,11 @@ else:
         "CelebA": celeba,
     }
 
-    registered_partitioned_datasources = {"FEMNIST": femnist}
+    registered_partitioned_datasources = \
+        {
+        "FEMNIST": femnist,
+        "Embryos": embryos
+        }
 
 
 def get(client_id=0):

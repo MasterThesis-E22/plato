@@ -23,12 +23,14 @@ else:
         vgg,
         torch_hub,
         huggingface,
+        lowgpu
     )
 
     registered_models = {
         "lenet5": lenet5.Model,
         "dcgan": dcgan.Model,
         "multilayer": multilayer.Model,
+        "lowgpu": lowgpu.Model
     }
 
     registered_factories = {
