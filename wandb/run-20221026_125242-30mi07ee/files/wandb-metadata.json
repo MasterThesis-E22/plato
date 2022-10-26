@@ -1,0 +1,27 @@
+{
+    "os": "Linux-5.4.0-125-generic-x86_64-with-glibc2.31",
+    "python": "3.9.14",
+    "heartbeatAt": "2022-10-26T10:52:43.096491",
+    "startedAt": "2022-10-26T10:52:42.366036",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_count": 1,
+    "cpu_count": 36,
+    "cuda": null,
+    "args": [
+        "-c",
+        "experiments/sync/fedavg_embryos_lowgpu.yml"
+    ],
+    "state": "running",
+    "program": "/home/maddox/plato-git/plato/experiments/sync/sync_base.py",
+    "codePath": "experiments/sync/sync_base.py",
+    "git": {
+        "remote": "git@github.com:MasterThesis-E22/plato.git",
+        "commit": "a582f158558ab6e60ddc3925dcbc981c041f2c04"
+    },
+    "email": null,
+    "root": "/home/maddox/plato-git/plato",
+    "host": "bifrost",
+    "username": "maddox",
+    "executable": "/home/maddox/plato-federated-basic/venv/bin/python"
+}

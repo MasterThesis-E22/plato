@@ -12,3 +12,5 @@ zstd
 torch-optimizer
 timm
 pandas
+wandb
+torchmetrics
