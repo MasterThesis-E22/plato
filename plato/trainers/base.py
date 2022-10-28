@@ -115,6 +115,23 @@ class Trainer(ABC):
             file.write(str(recall))
             
     @staticmethod
+    def save_predictions(recall, filename=None):
+        """Saving the test predictions to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            accuracy_path = f"{model_path}/{filename}"
+        else:
+            accuracy_path = f"{model_path}/{model_name}.predictions"
+
+        with open(accuracy_path, "w", encoding="utf-8") as file:
+            file.write(str(recall))
+            
+    @staticmethod
     def load_auroc(filename=None):
         """Loading the test auroc from a file."""
         model_path = Config().params["model_path"]
@@ -191,6 +208,21 @@ class Trainer(ABC):
         with open(accuracy_path, "r", encoding="utf-8") as file:
             recall = float(file.read())
         return recall
+    
+    @staticmethod
+    def load_predictions(filename=None):
+        """Loading the predictions from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            predictions_path = f"{model_path}/{filename}"
+        else:
+            predictions_path = f"{model_path}/{model_name}.predictions"
+
+        with open(predictions_path, "r", encoding="utf-8") as file:
+            predictions = float(file.read())
+        return predictions
 
     def pause_training(self):
         """Remove files of running trainers."""

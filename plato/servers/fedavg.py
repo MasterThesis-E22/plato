@@ -34,6 +34,8 @@ class Server(base.Server):
         self.custom_datasource = datasource
         self.datasource = None
 
+        self.validationset = None
+        self.validationset_sampler = None
         self.testset = None
         self.testset_sampler = None
         self.total_samples = 0
@@ -96,9 +98,15 @@ class Server(base.Server):
             elif self.datasource is None and self.custom_datasource is not None:
                 self.datasource = self.custom_datasource()
 
-            self.testset = self.datasource.get_test_set()
+            self.validationset = self.datasource.get_validation_set()
             if hasattr(Config().data, "testset_size"):
-                self.testset_sampler = all_inclusive.Sampler(
+                self.validationset_sampler = all_inclusive.Sampler(
+                    self.datasource, testing=True
+                )
+        
+        if hasattr(Config().server, "do_final_test") and Config().server.do_final_test:
+            self.testset = self.datasource.get_test_set
+            self.testset_sampler = all_inclusive.Sampler(
                     self.datasource, testing=True
                 )
 
@@ -117,7 +125,7 @@ class Server(base.Server):
             csv_processor.initialize_csv(
                 client_csv_file, accuracy_headers, Config().params["result_path"]
             )
-
+            
 
     def init_trainer(self):
         """Setting up the global model, trainer, and algorithm."""
@@ -234,7 +242,7 @@ class Server(base.Server):
         else:
             # Testing the updated model directly at the server
 
-            self.accuracy = self.trainer.test(self.testset, self.testset_sampler)
+            self.accuracy = self.trainer.test(self.validationset, self.validationset_sampler)
 
         if hasattr(Config().trainer, "target_perplexity"):
             logging.info("[%s] Global model perplexity: %.2f\n", self, self.accuracy)

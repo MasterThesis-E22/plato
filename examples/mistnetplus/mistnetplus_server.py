@@ -63,7 +63,7 @@ class MistnetplusServer(fedavg.Server):
             sampler = all_inclusive.Sampler(feature_dataset)
             self.algorithm.train(feature_dataset, sampler, Config().algorithm.cut_layer)
             # Test the updated model
-            self.accuracy = self.trainer.test(self.testset)
+            self.accuracy = self.trainer.test(self.validationset)
             logging.info(
                 "[Server #{:d}] Global model accuracy: {:.2f}%\n".format(
                     os.getpid(), 100 * self.accuracy

@@ -9,6 +9,7 @@ import os
 import pickle
 import re
 import time
+from types import SimpleNamespace
 
 import torch
 import torchmetrics
@@ -17,6 +18,7 @@ from plato.callbacks.trainer import PrintProgressCallback
 from plato.config import Config
 from plato.models import registry as models_registry
 from plato.trainers import base, loss_criterion, lr_schedulers, optimizers, tracking
+import numpy as numpy
 
 
 class Trainer(base.Trainer):
@@ -324,9 +326,9 @@ class Trainer(base.Trainer):
 
         try:
             if sampler is None:
-                loss, auroc, accuracy, precision, recall = self.test_model(config, testset, **kwargs)
+                loss, auroc, accuracy, precision, recall, predictions = self.test_model(config, testset, **kwargs)
             else:
-                loss, auroc, accuracy, precision, recall = self.test_model(config, testset, sampler.get(), **kwargs)
+                loss, auroc, accuracy, precision, recall, predictions = self.test_model(config, testset, sampler.get(), **kwargs)
 
         except Exception as testing_exception:
             logging.info("Testing on client #%d failed.", self.client_id)
@@ -350,8 +352,11 @@ class Trainer(base.Trainer):
 
             filename = f"{model_name}_{self.client_id}_{config['run_id']}.recall"
             self.save_recall(recall, filename)
+            
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.recall"
+            self.save_predictions(predictions, filename)
         else:
-            return loss, auroc, accuracy, precision, recall
+            return loss, auroc, accuracy, precision, recall, predictions
 
     def test(self, testset, sampler=None, **kwargs) -> (float, float):
         """Testing the model using the provided test dataset.
@@ -401,6 +406,11 @@ class Trainer(base.Trainer):
                     f"{model_name}_{self.client_id}_{Config().params['run_id']}.recall"
                 )
                 recall = self.load_recall(filename)
+                
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.predictions"
+                )
+                predictions = self.load_predictions(filename)
 
             except OSError as error:  # the model file is not found, training failed
                 raise ValueError(
@@ -409,7 +419,7 @@ class Trainer(base.Trainer):
 
             self.pause_training()
         else:
-            loss, auroc, accuracy, precision, recall = self.test_process(config, testset, **kwargs)
+            loss, auroc, accuracy, precision, recall, predictions = self.test_process(config, testset, **kwargs)
 
         return loss, auroc, accuracy, precision, recall
 
@@ -491,14 +501,15 @@ class Trainer(base.Trainer):
         acc = torchmetrics.classification.BinaryAccuracy().to(self.device)
         prec = torchmetrics.classification.BinaryPrecision().to(self.device)
         rec = torchmetrics.classification.BinaryRecall().to(self.device)
-
+        actual_labels = []
+        probabilities = []
+        predictions = []
+        
         with torch.no_grad():
             for examples, labels in test_loader:
                 examples, labels = examples.to(self.device), labels.to(self.device)
 
                 outputs = self.model(examples)
-
-
 
                 # Loss
                 if Config().trainer.loss_criterion == "BCEWithLogitsLoss":
@@ -517,15 +528,27 @@ class Trainer(base.Trainer):
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
-
+                
+                probability = torch.sigmoid(outputs)
+                both_probabilities = numpy.vstack((probability, 1 - probability.numpy())).T
+                
+                probabilities.append(both_probabilities)
+                actual_labels.append(labels)
+                predictions.append(predicted)
+                
         loss = loss_total / len(test_loader)
         auroc = auc.compute()
         accuracy = acc.compute()
         precision = prec.compute()
         recall = rec.compute()
+        plot_data = SimpleNamespace(
+            actual = actual_labels,
+            probabilities = probabilities,
+            predictions = predictions
+        )
 
         #accuracy = correct / total
-        return loss, auroc.item(), accuracy.item(), precision.item(), recall.item()
+        return loss, auroc.item(), accuracy.item(), precision.item(), recall.item(), plot_data
 
     def get_optimizer(self, model):
         """Returns the optimizer."""

@@ -1232,14 +1232,17 @@ class Server:
 
         if target_accuracy and self.accuracy >= target_accuracy:
             logging.info("[%s] Target accuracy reached.", self)
+            self.do_final_model_test()
             await self.close()
 
         if target_perplexity and self.accuracy <= target_perplexity:
             logging.info("[%s] Target perplexity reached.", self)
+            self.do_final_model_test()
             await self.close()
 
         if self.current_round >= Config().trainer.rounds:
             logging.info("Target number of training rounds reached.")
+            self.do_final_model_test()
             await self.close()
 
     # pylint: disable=protected-access
@@ -1285,3 +1288,68 @@ class Server:
         logging.info("[%s] Logging report from [Client-%d]", self, clientId)
         for attribute in list(report.__dict__):
             self.wandb_logger.log({f"client#{clientId}_{attribute}": getattr(report, attribute), "epoch": self.current_round}, step=self.current_round)
+            
+    def do_final_model_test(self):
+        '''
+        1. get the datasource and configuration thereof
+        2. perform test call to trainer and have the appropriate data returned for logging
+        3. perform said logging to wandb for  visualization
+            - Both plotting auroc, confusion matrix and logging plain data points.
+        '''
+        if not (hasattr(Config().server, "do_final_test") and Config().server.do_final_test):
+            return
+        else:
+        # 1. 
+            
+        # 2. 
+            loss, auroc, accuracy, precision, recall, plot_data = self.trainer.test(self.testset, self.testset_sampler)
+        # 3. 
+            #Logging parameters
+            self.wandb_logger.log({"test_loss": loss})
+            self.wandb_logger.log({"test_auroc": auroc})
+            self.wandb_logger.log({"test_accuracy": accuracy})
+            self.wandb_logger.log({"test_precision": precision})
+            self.wandb_logger.log({"test_recall": recall})
+            
+            #logging auroc curve and confusion matrix
+            self.wandb_logger.log({"roc" : wandb.plot.roc_curve(y_true=plot_data.actual.numpy(), y_probas=plot_data.probabilities, labels=["No", "Yes"])})
+            wandb.sklearn.plot_confusion_matrix(y_true=plot_data.actual.numpy(), preds=plot_data.predictions.numpy(), labels=["No", "Yes"])     
+            
+'''         
+from fedavg server configure() method:
+if not (hasattr(Config().server, "do_test") and not Config().server.do_test):
+            if self.datasource is None and self.custom_datasource is None:
+                self.datasource = datasources_registry.get(client_id=0)
+            elif self.datasource is None and self.custom_datasource is not None:
+                self.datasource = self.custom_datasource()
+
+            self.testset = self.datasource.get_test_set()
+            if hasattr(Config().data, "testset_size"):
+                self.testset_sampler = all_inclusive.Sampler(
+                    self.datasource, testing=True
+                )
+
+from simple client load_data():
+if hasattr(Config().clients, "do_test") and Config().clients.do_test:
+            # Set the testset if local testing is needed
+            self.testset = self.datasource.get_test_set()
+            if hasattr(Config().data, "testset_sampler"):
+                # Set the sampler for test set
+                self.testset_sampler = samplers_registry.get(
+                    self.datasource, self.client_id, testing=True
+                )
+
+from simple client code:
+if (hasattr(Config().clients, "do_test") and Config().clients.do_test) and (
+            not hasattr(Config().clients, "test_interval")
+            or self.current_round % Config().clients.test_interval == 0
+        ):
+            validation_loss, auroc, accuracy, precision, recall = self.trainer.test(self.testset, self.testset_sampler)
+
+from fedavg server code:             
+else:
+            # Testing the updated model directly at the server
+
+            self.accuracy = self.trainer.test(self.testset, self.testset_sampler)                
+'''  
+

@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import numpy
 from torchvision import datasets, transforms
+from sklearn.model_selection import train_test_split
 
 
 class EmbryosDataset(VisionDataset):
@@ -49,10 +50,11 @@ class EmbryosDataset(VisionDataset):
 
 
 class DataSource(base.DataSource):
-    def __init__(self, client_id=0):
+    def __init__(self, client_id=0, central_test=True):
         super().__init__()
         self.trainset = None
         self.testset = None
+        self.validationset = None
         self._root = "/mnt/data/mlr_ahj_datasets/vitrolife/dataset/"
 
         metadata_file_path = os.path.join(self._root, "metadata.csv")
@@ -60,14 +62,19 @@ class DataSource(base.DataSource):
 
         # Split in train and validation
         meta_data_train_validation = self._meta_data.loc[self._meta_data['Testset'] == 0]
+        meta_data_train, meta_data_validation = train_test_split(meta_data_train_validation, test_size=0.172, random_state=42)
         meta_data_test = self._meta_data.loc[self._meta_data['Testset'] == 1]
-        client_train_data = meta_data_train_validation.loc[meta_data_train_validation['LabID'] == client_id - 1]
+        
+        client_train_data = meta_data_train.loc[meta_data_train['LabID'] == client_id - 1]
+        client_validation_data = meta_data_validation.loc[meta_data_validation['LabID'] == client_id - 1]
         client_test_data = meta_data_test.loc[meta_data_test['LabID'] == client_id - 1]
 
         train_data, train_targets, _ = self._load_data(client_train_data)
+        validation_data, validation_targets = self._load_data(client_validation_data)
         test_data, test_targets, _ = self._load_data(client_test_data)
 
         self.trainset = EmbryosDataset(loaded_data=train_data, targets=train_targets)
+        self.validationset = EmbryosDataset(loaded_data=validation_data, targets=validation_targets)
         self.testset = EmbryosDataset(loaded_data=test_data, targets=test_targets)
 
     def _load_data(self, meta_data):
