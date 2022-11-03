@@ -14,6 +14,7 @@ from plato.servers import base
 from plato.trainers import registry as trainers_registry
 from plato.utils import csv_processor
 from plato.samplers import all_inclusive
+from plato.samplers import registry as samplers_registry
 
 
 class Server(base.Server):
@@ -105,9 +106,14 @@ class Server(base.Server):
                 )
         
         if hasattr(Config().server, "do_final_test") and Config().server.do_final_test:
-            self.testset = self.datasource.get_test_set
-            self.testset_sampler = all_inclusive.Sampler(
-                    self.datasource, testing=True
+            if self.datasource is None and self.custom_datasource is None:
+                self.datasource = datasources_registry.get(client_id=0)
+            elif self.datasource is None and self.custom_datasource is not None:
+                self.datasource = self.custom_datasource()
+            
+            self.testset = self.datasource.get_test_set()
+            self.testset_sampler = samplers_registry.get(
+                    self.datasource, 0, testing=True
                 )
 
         # Initialize the csv file which will record results

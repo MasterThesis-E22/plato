@@ -139,7 +139,7 @@ class Client(base.Client):
             not hasattr(Config().clients, "test_interval")
             or self.current_round % Config().clients.test_interval == 0
         ):
-            validation_loss, auroc, accuracy, precision, recall = self.trainer.test(self.testset, self.testset_sampler)
+            validation_loss, auroc, accuracy, precision, recall, predictions = self.trainer.test(self.testset, self.testset_sampler)
 
             if accuracy == -1:
                 # The testing process failed, disconnect from the server
@@ -175,8 +175,9 @@ class Client(base.Client):
             validation_loss=validation_loss,
             train_loss=train_loss,
             precision=precision,
-            recall=recall
-        )
+            recall=recall,
+            predictions=predictions,
+            )
 
         self._report = self.customize_report(report)
 

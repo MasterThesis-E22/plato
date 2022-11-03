@@ -4,7 +4,8 @@ Base class for trainers.
 
 from abc import ABC, abstractmethod
 import os
-
+from types import SimpleNamespace
+import json
 from plato.config import Config
 
 
@@ -99,7 +100,7 @@ class Trainer(ABC):
 
     @staticmethod
     def save_recall(recall, filename=None):
-        """Saving the test accuracy to a file."""
+        """Saving the test recall to a file."""
         model_path = Config().params["model_path"]
         model_name = Config().trainer.model_name
 
@@ -107,15 +108,15 @@ class Trainer(ABC):
             os.makedirs(model_path)
 
         if filename is not None:
-            accuracy_path = f"{model_path}/{filename}"
+            recall_path = f"{model_path}/{filename}"
         else:
-            accuracy_path = f"{model_path}/{model_name}.recall"
+            recall_path = f"{model_path}/{model_name}.recall"
 
-        with open(accuracy_path, "w", encoding="utf-8") as file:
+        with open(recall_path, "w", encoding="utf-8") as file:
             file.write(str(recall))
             
     @staticmethod
-    def save_predictions(recall, filename=None):
+    def save_predictions(predictions, filename=None):
         """Saving the test predictions to a file."""
         model_path = Config().params["model_path"]
         model_name = Config().trainer.model_name
@@ -129,7 +130,7 @@ class Trainer(ABC):
             accuracy_path = f"{model_path}/{model_name}.predictions"
 
         with open(accuracy_path, "w", encoding="utf-8") as file:
-            file.write(str(recall))
+            file.write(str(json.dumps(predictions)))
             
     @staticmethod
     def load_auroc(filename=None):
@@ -196,16 +197,16 @@ class Trainer(ABC):
 
     @staticmethod
     def load_recall(filename=None):
-        """Loading the loss from a file."""
+        """Loading the recall from a file."""
         model_path = Config().params["model_path"]
         model_name = Config().trainer.model_name
 
         if filename is not None:
-            accuracy_path = f"{model_path}/{filename}"
+            recall_path = f"{model_path}/{filename}"
         else:
-            accuracy_path = f"{model_path}/{model_name}.recall"
+            recall_path = f"{model_path}/{model_name}.recall"
 
-        with open(accuracy_path, "r", encoding="utf-8") as file:
+        with open(recall_path, "r", encoding="utf-8") as file:
             recall = float(file.read())
         return recall
     
@@ -221,7 +222,7 @@ class Trainer(ABC):
             predictions_path = f"{model_path}/{model_name}.predictions"
 
         with open(predictions_path, "r", encoding="utf-8") as file:
-            predictions = float(file.read())
+            predictions = json.loads(file.read())
         return predictions
 
     def pause_training(self):

@@ -14,12 +14,12 @@ class Model(nn.Sequential):
     def __init__(self):
         super().__init__(
             View(),
-            nn.Conv2d(stride=3, kernel_size=32, out_channels=8, in_channels=1),
+            nn.Conv2d(stride=3, kernel_size=32, out_channels=8, in_channels=1, padding="valid"),
             nn.BatchNorm2d(num_features=8),
             nn.ReLU(),
             nn.Dropout(0.2),
 
-            nn.Conv2d(stride=2, kernel_size=32, out_channels=16, in_channels=8),
+            nn.Conv2d(stride=2, kernel_size=32, out_channels=16, in_channels=8, padding="valid"),
             nn.BatchNorm2d(num_features=16),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),

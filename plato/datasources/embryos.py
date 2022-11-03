@@ -1,3 +1,4 @@
+import enum as enum
 from plato.datasources import base
 import os
 import pandas as pd
@@ -9,18 +10,20 @@ import torch
 import numpy
 from torchvision import datasets, transforms
 from sklearn.model_selection import train_test_split
-
+from imblearn.over_sampling import RandomOverSampler
 
 class EmbryosDataset(VisionDataset):
 
     def __init__(
-        self, loaded_data, targets, transform: Optional[Callable] = transforms.ToTensor(), target_transform: Optional[Callable] = None) \
+        self, data, targets, clinic_ids, root = "", transform: Optional[Callable] = transforms.ToTensor(), target_transform: Optional[Callable] = None) \
             -> None:
-        super().__init__(root="", transform=transform, target_transform=target_transform)
-        self.loaded_data = loaded_data
+        super().__init__(root=root, transform=transform, target_transform=target_transform)
+        self.data = data
         self.transform = transform
         self.target_transform = target_transform
         self.targets = targets
+        self.clinic_ids = clinic_ids
+        self._root = root
         self.classes = [0, 1]
 
     def __len__(self):
@@ -34,11 +37,11 @@ class EmbryosDataset(VisionDataset):
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
-        img, target = self.loaded_data[index], int(self.targets[index])
-
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
-        img = Image.fromarray(img, mode="L")
+        sampleId = self.data.iloc[[index]]['SampleID'].values[0]
+        file_path = os.path.join(self._root, "{:05d}.npz".format(sampleId))
+        img, target = self._load_image(file_path), int(self.targets[index])
 
         if self.transform is not None:
             img = self.transform(img)
@@ -47,35 +50,55 @@ class EmbryosDataset(VisionDataset):
             target = self.target_transform(target)
 
         return img, target
+    
+    
+    def _load_image(self, path):
+        file_data = np.load(path)
+        images = file_data['images']
 
+        focal = 1
+        frame = 0
+        img_raw = images[frame, :, :, focal]
+        img = Image.fromarray(img_raw)
+        newsize = (250, 250)
+        img = img.resize(newsize)
+        img_raw = np.asarray(img)
+        img_raw = img_raw.astype('float32') / 255
+        return img_raw
 
 class DataSource(base.DataSource):
-    def __init__(self, client_id=0, central_test=True):
+    def __init__(self, client_id=0):
         super().__init__()
+        self._oversampling = False
         self.trainset = None
         self.testset = None
         self.validationset = None
         self._root = "/mnt/data/mlr_ahj_datasets/vitrolife/dataset/"
 
+        #Loading in the meta data file
         metadata_file_path = os.path.join(self._root, "metadata.csv")
         self._meta_data = pd.read_csv(metadata_file_path)
 
-        # Split in train and validation
+        # Splitting train, test and validation data
         meta_data_train_validation = self._meta_data.loc[self._meta_data['Testset'] == 0]
         meta_data_train, meta_data_validation = train_test_split(meta_data_train_validation, test_size=0.172, random_state=42)
         meta_data_test = self._meta_data.loc[self._meta_data['Testset'] == 1]
         
         client_train_data = meta_data_train.loc[meta_data_train['LabID'] == client_id - 1]
         client_validation_data = meta_data_validation.loc[meta_data_validation['LabID'] == client_id - 1]
-        client_test_data = meta_data_test.loc[meta_data_test['LabID'] == client_id - 1]
+        if client_id == 0:
+            client_test_data = meta_data_test
+        else:
+            client_test_data = meta_data_test.loc[meta_data_test['LabID'] == client_id - 1]
 
-        train_data, train_targets, _ = self._load_data(client_train_data)
-        validation_data, validation_targets = self._load_data(client_validation_data)
-        test_data, test_targets, _ = self._load_data(client_test_data)
+        #Loading in data
+        train_data, train_targets, train_clinic_ids = self._load_data_type(client_train_data)
+        validation_data, validation_targets, validation_clinic_ids = self._load_data_type(client_validation_data)
+        test_data, test_targets, test_clinic_ids = self._load_data_type(client_test_data)
 
-        self.trainset = EmbryosDataset(loaded_data=train_data, targets=train_targets)
-        self.validationset = EmbryosDataset(loaded_data=validation_data, targets=validation_targets)
-        self.testset = EmbryosDataset(loaded_data=test_data, targets=test_targets)
+        self.trainset = EmbryosDataset(data=train_data, targets=train_targets, clinic_ids=train_clinic_ids, root=self._root)
+        self.validationset = EmbryosDataset(data=validation_data, targets=validation_targets, clinic_ids=validation_clinic_ids, root=self._root)
+        self.testset = EmbryosDataset(data=test_data, targets=test_targets, clinic_ids=test_clinic_ids, root=self._root)
 
     def _load_data(self, meta_data):
         data = []
@@ -92,17 +115,21 @@ class DataSource(base.DataSource):
         return data, label_tensor, clinic_ids
 
 
-    def _load_image(self, path):
-        file_data = np.load(path)
-        images = file_data['images']
-
-        focal = 1
-        frame = 0
-        img_raw = images[frame, :, :, focal]
-        img = Image.fromarray(img_raw)
-        newsize = (250, 250)
-        img = img.resize(newsize)
-        img_raw = np.asarray(img)
-        img_raw = img_raw.astype('float32') / 255
-        return img_raw
+    def _load_data_type(self, metadata):
+        # Oversample
+        if (self._oversampling):
+            ros = RandomOverSampler(random_state=42)
+            y = self._meta_data_train["Label"].tolist()
+            data, labels = ros.fit_resample(self._meta_data_train, y)
+            labels = torch.LongTensor(labels)
+            clinic_ids = data["LabID"].tolist()
+            clinic_ids = torch.LongTensor(clinic_ids)
+        else:
+            data = metadata
+            labels = data["Label"].tolist()
+            labels = torch.LongTensor(labels)
+            clinic_ids = data["LabID"].tolist()
+            clinic_ids = torch.LongTensor(clinic_ids)        
+        
+        return data, labels, clinic_ids
 

@@ -353,7 +353,7 @@ class Trainer(base.Trainer):
             filename = f"{model_name}_{self.client_id}_{config['run_id']}.recall"
             self.save_recall(recall, filename)
             
-            filename = f"{model_name}_{self.client_id}_{config['run_id']}.recall"
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.predictions"
             self.save_predictions(predictions, filename)
         else:
             return loss, auroc, accuracy, precision, recall, predictions
@@ -421,7 +421,7 @@ class Trainer(base.Trainer):
         else:
             loss, auroc, accuracy, precision, recall, predictions = self.test_process(config, testset, **kwargs)
 
-        return loss, auroc, accuracy, precision, recall
+        return loss, auroc, accuracy, precision, recall, predictions
 
     def obtain_model_update(self, wall_time):
         """
@@ -501,16 +501,17 @@ class Trainer(base.Trainer):
         acc = torchmetrics.classification.BinaryAccuracy().to(self.device)
         prec = torchmetrics.classification.BinaryPrecision().to(self.device)
         rec = torchmetrics.classification.BinaryRecall().to(self.device)
-        actual_labels = []
-        probabilities = []
-        predictions = []
         
         with torch.no_grad():
+            test_outputs = []
+            test_labels = []
+            test_predicted = []
+            
             for examples, labels in test_loader:
                 examples, labels = examples.to(self.device), labels.to(self.device)
 
                 outputs = self.model(examples)
-
+                
                 # Loss
                 if Config().trainer.loss_criterion == "BCEWithLogitsLoss":
                     outputs = outputs.squeeze(dim=1)
@@ -529,26 +530,34 @@ class Trainer(base.Trainer):
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
                 
-                probability = torch.sigmoid(outputs)
-                both_probabilities = numpy.vstack((probability, 1 - probability.numpy())).T
+                test_outputs.extend(outputs)
+                test_labels.extend(labels)
+                test_predicted.extend(predicted.tolist())
                 
-                probabilities.append(both_probabilities)
-                actual_labels.append(labels)
-                predictions.append(predicted)
-                
-        loss = loss_total / len(test_loader)
+            labels = torch.FloatTensor(test_labels)
+            logits = torch.FloatTensor(test_outputs)
+            labels = labels.cpu()
+            logits = logits.cpu()
+            probability = torch.sigmoid(logits)
+            both_probabilities = numpy.vstack((1 - probability.numpy(), probability)).T
+        
+        if len(test_loader) != 0:        
+            loss = loss_total / len(test_loader)
+        else:
+            loss = loss_total
         auroc = auc.compute()
         accuracy = acc.compute()
         precision = prec.compute()
         recall = rec.compute()
-        plot_data = SimpleNamespace(
-            actual = actual_labels,
-            probabilities = probabilities,
-            predictions = predictions
-        )
+
+        predictionsDictionary = {
+            "labels": labels.tolist(),
+            "predictions": test_predicted,
+            "probabilities": both_probabilities.tolist(),   
+        }
 
         #accuracy = correct / total
-        return loss, auroc.item(), accuracy.item(), precision.item(), recall.item(), plot_data
+        return loss, auroc.item(), accuracy.item(), precision.item(), recall.item(), predictionsDictionary
 
     def get_optimizer(self, model):
         """Returns the optimizer."""
