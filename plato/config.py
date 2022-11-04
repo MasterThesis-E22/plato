@@ -190,6 +190,7 @@ class Config:
                 Config.params["model_path"] = os.path.join(
                     Config.params["base_path"], Config().server.model_path
                 )
+                Config.params["model_path"] = os.path.join(Config.params["model_path"], config["parameters"]["experiment_name"])
             else:
                 Config.params["model_path"] = os.path.join(
                     Config.params["base_path"], "models/pretrained"
