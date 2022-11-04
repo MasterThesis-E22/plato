@@ -13,6 +13,5 @@ for experiment in ${experiments}; do
     if [ ! -f output/$experiment.txt ]; then
         touch $base_path/experiment_output/$experiment.txt
     fi
-    echo "success"
-    ##../../venv/bin/python sync_base.py -c $experiment.yml > output/$experiment.txt
+    $base_path/../../venv/bin/python sync_base.py -c $experiment.yml > experiment_output/$experiment.txt
 done
