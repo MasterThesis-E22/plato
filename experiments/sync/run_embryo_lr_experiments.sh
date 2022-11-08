@@ -8,10 +8,14 @@ if [[ -z "$base_path" ]] ; then
 fi
 echo "$base_path"
 
+#experiments=("test1" "test2" "test3")
 experiments=("fedavg_r100_e1_lr0000001" "fedavg_r100_e1_lr000001" "fedavg_r100_e1_lr00001")
-for experiment in ${experiments}; do
-    if [ ! -f output/$experiment.txt ]; then
-        touch $base_path/experiment_output/$experiment.txt
-    fi
-    $base_path/../../venv/bin/python sync_base.py -c $experiment.yml > experiment_output/$experiment.txt
+for experiment in ${experiments[@]}; do
+    echo "Starting experiment <$experiment> as nohup and directing output to output/$experiment.out"
+    $base_path/../../venv/bin/python sync_base.py -c $experiment.yml
+    echo "Experiment <$experiment> done"
+    echo -e "\n\n\n\n\n"
+    echo "=============================================================================================="
+    echo -e "\n\n\n\n\n"
 done
+echo "Finished executing experiments"

@@ -164,3 +164,7 @@ tensorflow_datasets/
 # Logging and output
 wandb/
 nohup.out
+experiments/sync/models
+experiments/async/models
+experiments/sync/output
+experiments/async/output
