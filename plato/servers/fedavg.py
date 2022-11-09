@@ -223,7 +223,7 @@ class Server(base.Server):
             self.auroc, self.accuracy, self.test_loss, self.train_loss, self.precision, self.recall = self.metric_averaging(self.updates)
 
             logging.info(
-                "[%s] Average client auroc: %.2f%%.", self, 100 * self.auroc
+                "[%s] Average client auroc: %.2f%%.", self, self.auroc
             )
             logging.info(
                 "[%s] Average client accuracy: %.2f%%.", self, 100 * self.accuracy

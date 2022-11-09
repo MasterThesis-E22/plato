@@ -339,7 +339,7 @@ class Trainer(base.Trainer):
         if "max_concurrency" in config:
             model_name = config["model_name"]
             filename = f"{model_name}_{self.client_id}_{config['run_id']}.auroc"
-            self.save_auroc(accuracy, filename)
+            self.save_auroc(auroc, filename)
             
             filename = f"{model_name}_{self.client_id}_{config['run_id']}.accuracy"
             self.save_accuracy(accuracy, filename)
