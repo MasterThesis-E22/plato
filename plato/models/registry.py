@@ -5,6 +5,7 @@ Having a registry of all available classes is convenient for retrieving an insta
 based on a configuration at run-time.
 """
 from plato.config import Config
+from plato.models import mnist_simplecnn
 
 if hasattr(Config().trainer, "use_mindspore"):
     from plato.models.mindspore import lenet5 as lenet5_mindspore
@@ -23,14 +24,16 @@ else:
         vgg,
         torch_hub,
         huggingface,
-        lowgpu
+        lowgpu,
+        mnist_simplecnn
     )
 
     registered_models = {
         "lenet5": lenet5.Model,
         "dcgan": dcgan.Model,
         "multilayer": multilayer.Model,
-        "lowgpu": lowgpu.Model
+        "lowgpu": lowgpu.Model,
+        "mnist_simplecnn": mnist_simplecnn.Model
     }
 
     registered_factories = {

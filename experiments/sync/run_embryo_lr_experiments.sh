@@ -8,6 +8,7 @@ if [[ -z "$base_path" ]] ; then
 fi
 echo "$base_path"
 
+#experiments=("test3")
 #experiments=("test1" "test2" "test3")
 experiments=("fedavg_r100_e1_lr0000001" "fedavg_r100_e1_lr000001" "fedavg_r100_e1_lr00001")
 for experiment in ${experiments[@]}; do
