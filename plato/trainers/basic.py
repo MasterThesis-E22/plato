@@ -550,6 +550,10 @@ class Trainer(base.Trainer):
                 test_labels.extend(labels)
                 test_predicted.extend(predicted.tolist())
 
+            print("test_outputs: {}".format(len(test_outputs)))
+            print("test_labels: {}".format(len(test_labels)))
+            print("test_predicted: {}".format(len(test_predicted)))
+            
             if Config().data.datasource == "Embryos":
                 labels = torch.FloatTensor(test_labels)
                 logits = torch.FloatTensor(test_outputs)

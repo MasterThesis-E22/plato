@@ -112,8 +112,13 @@ class Server(base.Server):
                 self.datasource = self.custom_datasource()
             
             self.testset = self.datasource.get_test_set()
-            self.testset_sampler = samplers_registry.get(
-                    self.datasource, 0, testing=True
+            if Config().data.datasource == "Embryos": 
+                self.testset_sampler = samplers_registry.get(
+                    self.datasource, client_id=0, testing=True
+                )
+            else:
+                self.validationset_sampler = all_inclusive.Sampler(
+                    self.datasource, testing=True
                 )
 
         # Initialize the csv file which will record results
