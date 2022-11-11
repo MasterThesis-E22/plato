@@ -322,9 +322,10 @@ class Server(base.Server):
         precision = 0
         recall = 0
         for update in updates:
-            auroc += update.report.auroc * (
-                update.report.num_samples / total_samples
-            )
+            if Config().data.datasource == "Embryos":
+                auroc += update.report.auroc * (
+                    update.report.num_samples / total_samples
+                )
             accuracy += update.report.accuracy * (
                 update.report.num_samples / total_samples
             )

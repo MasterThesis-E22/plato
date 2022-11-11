@@ -3,7 +3,7 @@ from plato.config import Config
 import logging
 
 class WANDBLogger:
-    _projectName = "Embryos"
+    _projectName = Config().data.datasource
     _groupName = Config().params["experiment_name"]
     _entityName = "master-thesis-22"
     

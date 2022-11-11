@@ -1308,12 +1308,37 @@ class Server:
         # 2. 
             #Logging parameters
             self.wandb_logger.log({"central_test_loss": loss})
-            self.wandb_logger.log({"central_test_auroc": auroc})
+            if Config().data.datasource == "Embryos": self.wandb_logger.log({"central_test_auroc": auroc})
             self.wandb_logger.log({"central_test_accuracy": accuracy})
             self.wandb_logger.log({"central_test_precision": precision})
             self.wandb_logger.log({"central_test_recall": recall})
             
             #logging auroc curve and confusion matrix
-            self.wandb_logger.log({"roc" : wandb.plot.roc_curve(y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), y_probas=numpy.asarray(plot_data["probabilities"], dtype=numpy.float32), labels=["No", "Yes"])})
-            self.wandb_logger.log({"conf" : wandb.plot.confusion_matrix(preds=numpy.asarray(plot_data["predictions"], dtype=numpy.float32), y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), class_names=["No", "Yes"])})     
-
+            if Config().data.datasource == "Embryos": 
+                self.wandb_logger.log({"roc" : wandb.plot.roc_curve(
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    y_probas=numpy.asarray(plot_data["probabilities"], dtype=numpy.float32), 
+                    labels=["No", "Yes"])})
+                self.wandb_logger.log({"conf" : wandb.plot.confusion_matrix(
+                    preds=numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    class_names=["No", "Yes"])})
+                self.wandb_logger.log({"conf-sklearn": wandb.sklearn.plot_confusion_matrix(
+                    numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
+                    ["No", "Yes"]
+                )})
+            else:
+                self.wandb_logger.log({"roc" : wandb.plot.roc_curve(
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    y_probas=numpy.asarray(plot_data["logits"], dtype=numpy.float32), 
+                    labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])})
+                self.wandb_logger.log({"conf" : wandb.plot.confusion_matrix(
+                    preds=numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    class_names=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])})
+                self.wandb_logger.log({"conf-sklearn": wandb.sklearn.plot_confusion_matrix(
+                    numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
+                    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+                )})
