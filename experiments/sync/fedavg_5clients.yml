@@ -32,7 +32,8 @@ server:
 data:
     # The training and testing dataset
     datasource: Embryos
-
+    size_sorted: true
+    
     # Number of samples in each partition
     #partition_size: 600
 
