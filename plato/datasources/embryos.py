@@ -11,6 +11,8 @@ import numpy
 from torchvision import datasets, transforms
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import RandomOverSampler
+from plato.config import Config
+import logging
 
 class EmbryosDataset(VisionDataset):
 
@@ -74,22 +76,31 @@ class DataSource(base.DataSource):
         self.testset = None
         self.validationset = None
         self._root = "/mnt/data/mlr_ahj_datasets/vitrolife/dataset/"
+        
 
         #Loading in the meta data file
         metadata_file_path = os.path.join(self._root, "metadata.csv")
         self._meta_data = pd.read_csv(metadata_file_path)
-
+        self._size_sort_client_ids()
+        
+        # If indicated in the config file - The clients will be using the labIds in the order from most data to least
+        # meaning that when using a lower amount of clients than labIds the labs with the lowest amount of training data are not used
+        sortedIds = self._size_sort_client_ids() if (hasattr(Config().data, "size_sorted") and Config().data.size_sorted) else range(23)
+        if client_id != 0: logging.info("client-id #%d will be designated labId #%d", client_id, sortedIds[client_id])
+        
         # Splitting train, test and validation data
         meta_data_train_validation = self._meta_data.loc[self._meta_data['Testset'] == 0]
         meta_data_train, meta_data_validation = train_test_split(meta_data_train_validation, test_size=0.172, random_state=42)
         meta_data_test = self._meta_data.loc[self._meta_data['Testset'] == 1]
         
-        client_train_data = meta_data_train.loc[meta_data_train['LabID'] == client_id - 1]
-        client_validation_data = meta_data_validation.loc[meta_data_validation['LabID'] == client_id - 1]
-        if client_id == 0:
-            client_test_data = meta_data_test
+        if client_id != 0:
+            client_train_data = meta_data_train.loc[meta_data_train['LabID'] == sortedIds[client_id-1]]
+            client_validation_data = meta_data_validation.loc[meta_data_validation['LabID'] == sortedIds[client_id-1]]
+            client_test_data = meta_data_test.loc[meta_data_test['LabID'] == sortedIds[client_id-1]]
         else:
-            client_test_data = meta_data_test.loc[meta_data_test['LabID'] == client_id - 1]
+            client_train_data = meta_data_train
+            client_validation_data = meta_data_validation
+            client_test_data = meta_data_test
 
         #Loading in data
         train_data, train_targets, train_clinic_ids = self._load_data_type(client_train_data)
@@ -99,6 +110,18 @@ class DataSource(base.DataSource):
         self.trainset = EmbryosDataset(data=train_data, targets=train_targets, clinic_ids=train_clinic_ids, root=self._root)
         self.validationset = EmbryosDataset(data=validation_data, targets=validation_targets, clinic_ids=validation_clinic_ids, root=self._root)
         self.testset = EmbryosDataset(data=test_data, targets=test_targets, clinic_ids=test_clinic_ids, root=self._root)
+
+    def _size_sort_client_ids(self):
+        logging.info("Sorting Embryo dataset based on lab size")
+        ids = range(23)
+        sizes = []
+        train_val_data = self._meta_data.loc[self._meta_data['Testset'] == 0]
+        for id in ids:
+            sizes.append(len(train_val_data.loc[train_val_data['LabID'] == id]))
+        assert(len(sizes) == 23)
+        sortedIds = [x for _,x in sorted(zip(sizes,ids), reverse=True)]
+        return sortedIds
+        
 
     def _load_data(self, meta_data):
         data = []
@@ -133,3 +156,4 @@ class DataSource(base.DataSource):
         
         return data, labels, clinic_ids
 
+    
