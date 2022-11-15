@@ -32,7 +32,7 @@ else:
         "lenet5": lenet5.Model,
         "dcgan": dcgan.Model,
         "multilayer": multilayer.Model,
-        "lowgpu": lowgpu.Model,
+        "lowgpu": lowgpu.UpdatedEmbryosLowGPUCNN,
         "simplecnn": simplecnn.Model
     }
 
