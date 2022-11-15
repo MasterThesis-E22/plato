@@ -73,7 +73,7 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "Embryos-FedAvg-LR1e3-C23"
+    experiment_name: "FedAvg-LR1e3-C23"
     optimizer:
         lr: 0.0001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2

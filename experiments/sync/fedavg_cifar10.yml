@@ -31,7 +31,7 @@ server:
 
 data:
     # The training and testing dataset
-    datasource: Embryos
+    datasource: CIFAR10
     size_sorted: true
 
     # Number of samples in each partition
@@ -74,7 +74,7 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "FedAvg-LR1e5-C23"
+    experiment_name: "FedAvg-xx-C23"
     optimizer:
         lr: 0.000001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2

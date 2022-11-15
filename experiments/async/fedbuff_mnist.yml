@@ -31,7 +31,7 @@ server:
 
 data:
     # The training and testing dataset
-    datasource: Embryos
+    datasource: MNIST
     size_sorted: true
 
     # Number of samples in each partition
@@ -74,11 +74,8 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "FedAvg-LR1e5-C23"
-    optimizer:
-        lr: 0.000001
-        momentum: 0.0 # learning rate is fixed as in Appendix C.2
-        weight_decay: 0
+    experiment_name: "CIFAR10-xx-xx"
+    optimizer: !include common_lr_config.yml
 
 results:
     result_path: results/fedavg/embryos

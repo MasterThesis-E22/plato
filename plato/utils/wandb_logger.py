@@ -1,6 +1,7 @@
 import wandb
 from plato.config import Config
 import logging
+from datetime import datetime
 
 class WANDBLogger:
     _projectName = Config().data.datasource
@@ -15,7 +16,7 @@ class WANDBLogger:
     
     def __init__(self, runName):
         self._initiated: bool = False
-        self.runName = runName
+        self.runName = self._groupName + "-{}".format(datetime.now().strftime("%d/%m-%H:%M"))
         
         
     def start(self):
