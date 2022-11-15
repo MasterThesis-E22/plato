@@ -2,11 +2,12 @@
 import torch
 import torch.nn as nn
 
-class View(nn.Module):
+class EmbryosView(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input):
+    @staticmethod
+    def forward(input):
         return input.view(-1, 1, 250, 250)
 
 
