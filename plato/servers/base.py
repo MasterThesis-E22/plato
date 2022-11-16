@@ -102,7 +102,7 @@ class Server:
             if hasattr(Config().clients, "comm_simulation")
             else True
         )
-        self.wandb_logger = wandb_logger.WANDBLogger()
+        self.wandb_logger = wandb_logger.WANDBLogger(None)
 
         # Starting from the default server callback class, add all supplied server callbacks
         self.callbacks = [PrintProgressCallback]

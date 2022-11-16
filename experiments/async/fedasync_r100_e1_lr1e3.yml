@@ -22,12 +22,13 @@ server:
     do_test: false
 
     # Parameters for FedAsync
+    # https://arxiv.org/pdf/1903.03934.pdf page 4 (evaluation setup)
     staleness_bound: 1000 # FedAsync doesn't have any staleness bound
     minimum_clients_aggregated: 1
     mixing_hyperparameter: 0.9
     adaptive_mixing: true
     staleness_weighting_function:
-        type: Polynomial
+        type: Hinge
         a: 2
 
     checkpoint_path: models/fedasync/embryos

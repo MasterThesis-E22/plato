@@ -12,11 +12,11 @@ class EmbryosView(nn.Module):
 
 
 class UpdatedEmbryosLowGPUCNN(nn.Module):
-    def __init__(self, in_c):
+    def __init__(self):
         super().__init__()
         self.conv_block1 = nn.Sequential(
             EmbryosView(),
-            nn.Conv2d(stride=3, kernel_size=5, out_channels=8, in_channels=in_c, padding="valid"),
+            nn.Conv2d(stride=3, kernel_size=5, out_channels=8, in_channels=1, padding="valid"),
             nn.BatchNorm2d(num_features=8),
             nn.ReLU(),
             nn.Dropout(0.2)

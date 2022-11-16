@@ -81,12 +81,10 @@ class DataSource(base.DataSource):
         #Loading in the meta data file
         metadata_file_path = os.path.join(self._root, "metadata.csv")
         self._meta_data = pd.read_csv(metadata_file_path)
-        self._size_sort_client_ids()
         
-        # If indicated in the config file - The clients will be using the labIds in the order from most data to least
-        # meaning that when using a lower amount of clients than labIds the labs with the lowest amount of training data are not used
+        # If indicated in the config file - The clients will be using the labIds in the order from most data to least, meaning that when using a lower amount of clients than labIds the labs with the lowest amount of training data are not used
         sortedIds = self._size_sort_client_ids() if (hasattr(Config().data, "size_sorted") and Config().data.size_sorted) else range(23)
-        if client_id != 0: logging.info("client-id #%d will be designated labId #%d", client_id, sortedIds[client_id])
+        if client_id != 0: logging.info("client-id #%d will be designated labId #%d", client_id, sortedIds[client_id-1])
         
         # Splitting train, test and validation data
         meta_data_train_validation = self._meta_data.loc[self._meta_data['Testset'] == 0]
