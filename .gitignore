@@ -168,3 +168,4 @@ experiments/sync/models
 experiments/async/models
 experiments/sync/output
 experiments/async/output
+wandb/latest-run

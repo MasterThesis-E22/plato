@@ -3,10 +3,10 @@ clients:
     type: simple
 
     # The total number of clients
-    total_clients: 10
+    total_clients: 3
 
     # The number of clients selected in each round
-    per_round: 10
+    per_round: 3
 
     # Should the clients compute test accuracy locally?
     do_test: true
@@ -17,7 +17,7 @@ clients:
 
 server:
     address: 127.0.0.1
-    port: 8000
+    port: 8001
     synchronous: true
     simulate_wall_time: true
     do_test: false
@@ -34,10 +34,10 @@ data:
     datasource: MNIST
 
     # Number of samples in each partition
-    partition_size: 10000
+    partition_size: 70000
 
     # IID or non-IID?
-    sampler: iid
+    sampler: all_inclusive
 
     # The concentration parameter for the Dirichlet distribution
     #concentration: 5
@@ -50,20 +50,20 @@ trainer:
     type: basic
 
     # The maximum number of training rounds
-    rounds: 10
+    rounds: 20
 
     # The maximum number of clients running concurrently
     max_concurrency: 10
 
     # The target accuracy
-    target_accuracy: 0.98
+    #target_accuracy: 0.98
 
     # The machine learning model
-    model_name: simplecnn
+    model_name: lowgpuMnist
 
     # Number of epoches for local training in each communication round
     epochs: 1
-    batch_size: 16
+    batch_size: 64
     optimizer: RMSprop
 
     loss_criterion: CrossEntropyLoss
@@ -73,7 +73,7 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "flipflop-Test"
+    experiment_name: "fedDebug"
     optimizer:
         lr: 0.0001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2

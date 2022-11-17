@@ -32,10 +32,10 @@ else:
         "lenet5": lenet5.Model,
         "dcgan": dcgan.Model,
         "multilayer": multilayer.Model,
-        "lowgpu_embryos_new": models.UpdatedEmbryosLowGPUCNN,
-        "lowgpu_embryos_old": models.EmbryosLowGPUCNN,
-        "lowgpu_mnist": models.MNISTLowGPUCNN,
-        "lowgpu_cifar10": models.Cifar10LowGPUCNN,
+        "lowgpuEmbryosNew": models.UpdatedEmbryosLowGPUCNN,
+        "lowgpuEmbryosOld": models.EmbryosLowGPUCNN,
+        "lowgpuMnist": models.MNISTLowGPUCNN,
+        "lowgpuCifar10": models.Cifar10LowGPUCNN,
         "simplecnn": simplecnn.Model
     }
 
