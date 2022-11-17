@@ -18,11 +18,11 @@ class MNISTView(nn.Module):
         return input.view(-1, 1, 28, 28)
 
 class EmbryosLowGPUCNN(nn.Module):
-    def __init__(self, in_c):
+    def __init__(self):
         super().__init__()
         self.conv_block1 = nn.Sequential(
             EmbryosView(),
-            nn.Conv2d(stride=3, kernel_size=32, out_channels=8, in_channels=in_c, padding="valid"),
+            nn.Conv2d(stride=3, kernel_size=32, out_channels=8, in_channels=1, padding="valid"),
             nn.BatchNorm2d(num_features=8),
             nn.ReLU(),
             nn.Dropout(0.2)
@@ -68,11 +68,11 @@ class EmbryosLowGPUCNN(nn.Module):
         return x
 
 class UpdatedEmbryosLowGPUCNN(nn.Module):
-    def __init__(self, in_c):
+    def __init__(self):
         super().__init__()
         self.conv_block1 = nn.Sequential(
             EmbryosView(),
-            nn.Conv2d(stride=3, kernel_size=5, out_channels=8, in_channels=in_c, padding="valid"),
+            nn.Conv2d(stride=3, kernel_size=5, out_channels=8, in_channels=1, padding="valid"),
             nn.BatchNorm2d(num_features=8),
             nn.ReLU(),
             nn.Dropout(0.2)

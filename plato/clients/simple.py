@@ -119,22 +119,7 @@ class Client(base.Client):
                 f"[{self}] Started training in communication round #{self.current_round}."
             )
         )
-
-        # Perform model training
-        try:
-            if hasattr(self.trainer, "current_round"):
-                self.trainer.current_round = self.current_round
-            training_time, train_loss = self.trainer.train(self.trainset, self.sampler)
-        except ValueError as exc:
-            logging.info(
-                fonts.colourize(f"[{self}] Error occurred during training: {exc}")
-            )
-            await self.sio.disconnect()
-
-        # Extract model weights and biases
-        weights = self.algorithm.extract_weights()
-
-        # Generate a report for the server, performing model testing if applicable
+        # performing model testing if applicable
         if (hasattr(Config().clients, "do_test") and Config().clients.do_test) and (
             not hasattr(Config().clients, "test_interval")
             or self.current_round % Config().clients.test_interval == 0
@@ -151,6 +136,38 @@ class Client(base.Client):
                 logging.info("[%s] Test accuracy: %.2f%%", self, 100 * accuracy)
         else:
             accuracy = 0
+
+        # Perform model training
+        try:
+            if hasattr(self.trainer, "current_round"):
+                self.trainer.current_round = self.current_round
+            training_time, train_loss = self.trainer.train(self.trainset, self.sampler)
+        except ValueError as exc:
+            logging.info(
+                fonts.colourize(f"[{self}] Error occurred during training: {exc}")
+            )
+            await self.sio.disconnect()
+
+        # Extract model weights and biases
+        weights = self.algorithm.extract_weights()
+
+        # Generate a report for the server, performing model testing if applicable
+        #if (hasattr(Config().clients, "do_test") and Config().clients.do_test) and (
+        #    not hasattr(Config().clients, "test_interval")
+        #    or self.current_round % Config().clients.test_interval == 0
+        #):
+        #    validation_loss, auroc, accuracy, precision, recall, predictions = self.trainer.test(self.testset, self.testset_sampler)
+        #
+        #    if accuracy == -1:
+        #        # The testing process failed, disconnect from the server
+        #        await self.sio.disconnect()
+        #
+        #    if hasattr(Config().trainer, "target_perplexity"):
+        #        logging.info("[%s] Test perplexity: %.2f", self, accuracy)
+        #    else:
+        #        logging.info("[%s] Test accuracy: %.2f%%", self, 100 * accuracy)
+        #else:
+        #    accuracy = 0
 
         comm_time = time.time()
 
