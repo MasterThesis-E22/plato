@@ -34,16 +34,16 @@ data:
     datasource: MNIST
 
     # Number of samples in each partition
-    partition_size: 70000
+    partition_size: 2.173
 
     # IID or non-IID?
-    sampler: all_inclusive
+    sampler: dirichlet
 
     # The concentration parameter for the Dirichlet distribution
-    #concentration: 5
+    concentration: 10
 
     # The random seed for sampling data
-    #random_seed: 1
+    random_seed: 1
 
 trainer:
     # The type of the trainer
