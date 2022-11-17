@@ -24,7 +24,7 @@ else:
         vgg,
         torch_hub,
         huggingface,
-        lowgpu,
+        models,
         simplecnn
     )
 
@@ -32,7 +32,10 @@ else:
         "lenet5": lenet5.Model,
         "dcgan": dcgan.Model,
         "multilayer": multilayer.Model,
-        "lowgpu": lowgpu.UpdatedEmbryosLowGPUCNN,
+        "lowgpu_embryos_new": models.UpdatedEmbryosLowGPUCNN,
+        "lowgpu_embryos_old": models.EmbryosLowGPUCNN,
+        "lowgpu_mnist": models.MNISTLowGPUCNN,
+        "lowgpu_cifar10": models.Cifar10LowGPUCNN,
         "simplecnn": simplecnn.Model
     }
 

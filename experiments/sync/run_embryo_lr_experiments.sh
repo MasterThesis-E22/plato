@@ -10,7 +10,11 @@ echo "$base_path"
 
 #experiments=("test3")
 #experiments=("test1" "test2" "test3")
-experiments=("fedavg_r100_e1_lr1e5" "fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
+#experiments=("fedavg_r100_e1_lr1e5" "fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
+experiments=("fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
+echo "=============================================================================================="
+echo "Starting Learning rate experiments"
+echo "=============================================================================================="
 for experiment in ${experiments[@]}; do
     echo "Starting experiment <$experiment>"
     $base_path/../../venv/bin/python sync_base.py -c $experiment.yml
