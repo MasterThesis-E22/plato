@@ -88,16 +88,15 @@ class DataSource(base.DataSource):
         
         # Splitting train, test and validation data
         meta_data_train_validation = self._meta_data.loc[self._meta_data['Testset'] == 0]
-        meta_data_train, meta_data_validation = train_test_split(meta_data_train_validation, test_size=0.172, random_state=42)
+        #meta_data_train, meta_data_validation = train_test_split(meta_data_train_validation, test_size=0.172, random_state=42)
         meta_data_test = self._meta_data.loc[self._meta_data['Testset'] == 1]
         
         if client_id != 0:
-            client_train_data = meta_data_train.loc[meta_data_train['LabID'] == sortedIds[client_id-1]]
-            client_validation_data = meta_data_validation.loc[meta_data_validation['LabID'] == sortedIds[client_id-1]]
+            client_train_validation_data = meta_data_train_validation.loc[meta_data_train_validation['LabID'] == sortedIds[client_id-1]]
+            client_train_data, client_validation_data = train_test_split(client_train_validation_data, test_size=0.172, random_state=42)
             client_test_data = meta_data_test.loc[meta_data_test['LabID'] == sortedIds[client_id-1]]
         else:
-            client_train_data = meta_data_train
-            client_validation_data = meta_data_validation
+            client_train_data, client_validation_data = train_test_split(meta_data_train_validation, test_size=0.172, random_state=42)
             client_test_data = meta_data_test
 
         #Loading in data
