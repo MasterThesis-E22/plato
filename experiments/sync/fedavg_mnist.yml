@@ -3,10 +3,10 @@ clients:
     type: simple
 
     # The total number of clients
-    total_clients: 23
+    total_clients: 10
 
     # The number of clients selected in each round
-    per_round: 23
+    per_round: 10
 
     # Should the clients compute test accuracy locally?
     do_test: true
@@ -23,22 +23,22 @@ server:
     do_test: false
     do_final_test: true
 
-    checkpoint_path: models/fedavg/embryos
-    model_path: models/fedavg/embryos
+    checkpoint_path: models/fedavg/mnist
+    model_path: models/fedavg/mnist
 
     downlink_bandwidth: 100
     uplink_bandwidth: 100
 
 data:
     # The training and testing dataset
-    datasource: MNIST
-    size_sorted: true
+    datasource: PartitionedMNIST
 
     # Number of samples in each partition
     #partition_size: 600
 
     # IID or non-IID?
     sampler: all_inclusive
+    testset_sampler: all_inclusive
 
     # The concentration parameter for the Dirichlet distribution
     #concentration: 5
@@ -51,7 +51,7 @@ trainer:
     type: basic
 
     # The maximum number of training rounds
-    rounds: 100
+    rounds: 5
 
     # The maximum number of clients running concurrently
     max_concurrency: 10
@@ -60,14 +60,14 @@ trainer:
     target_accuracy: 0.98
 
     # The machine learning model
-    model_name: lowgpu
+    model_name: lowgpuMnist
 
     # Number of epoches for local training in each communication round
     epochs: 1
-    batch_size: 16
+    batch_size: 64
     optimizer: RMSprop
 
-    loss_criterion: BCEWithLogitsLoss
+    loss_criterion: CrossEntropyLoss
 
 algorithm:
     # Aggregation algorithm
@@ -76,11 +76,11 @@ algorithm:
 parameters:
     experiment_name: "FedAvg-xx-C23"
     optimizer:
-        lr: 0.000001
+        lr: 0.001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2
         weight_decay: 0
 
 results:
-    result_path: results/fedavg/embryos
+    result_path: results/fedavg/mnist
     # Write the following parameter(s) into a CSV
     types: round, elapsed_time, comm_time, round_time, comm_overhead, train_loss, test_loss, auroc, accuracy, precision, recall

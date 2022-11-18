@@ -12,6 +12,7 @@ from plato.config import Config
 from plato.datasources import registry as datasources_registry
 from plato.processors import registry as processor_registry
 from plato.samplers import registry as samplers_registry
+from plato.samplers.base import DataType
 from plato.trainers import registry as trainers_registry
 from plato.utils import fonts
 
@@ -100,12 +101,12 @@ class Client(base.Client):
             self.trainset = self.datasource.get_train_set()
 
         if hasattr(Config().clients, "do_test") and Config().clients.do_test:
-            # Set the testset if local testing is needed
-            self.testset = self.datasource.get_test_set()
+            # Here we load the validation data
+            self.validationset = self.datasource.get_validation_set()
             if hasattr(Config().data, "testset_sampler"):
                 # Set the sampler for test set
-                self.testset_sampler = samplers_registry.get(
-                    self.datasource, self.client_id, testing=True
+                self.validationset_sampler = samplers_registry.get(
+                    self.datasource, self.client_id, DataType.Validation
                 )
 
     def load_payload(self, server_payload) -> None:
@@ -124,7 +125,7 @@ class Client(base.Client):
             not hasattr(Config().clients, "test_interval")
             or self.current_round % Config().clients.test_interval == 0
         ):
-            validation_loss, auroc, accuracy, precision, recall, predictions = self.trainer.test(self.testset, self.testset_sampler)
+            validation_loss, auroc, accuracy, precision, recall, predictions = self.trainer.test(self.validationset, self.validationset_sampler)
 
             if accuracy == -1:
                 # The testing process failed, disconnect from the server

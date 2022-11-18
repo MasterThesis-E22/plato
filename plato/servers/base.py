@@ -1308,7 +1308,7 @@ class Server:
         # 2. 
             #Logging parameters
             self.wandb_logger.log({"final/central_test_loss": loss})
-            if Config().data.datasource == "Embryos": self.wandb_logger.log({"final/central_test_auroc": auroc})
+            self.wandb_logger.log({"final/central_test_auroc": auroc})
             self.wandb_logger.log({"final/central_test_accuracy": accuracy})
             self.wandb_logger.log({"final/central_test_precision": precision})
             self.wandb_logger.log({"final/central_test_recall": recall})

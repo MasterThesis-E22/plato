@@ -10,6 +10,7 @@ from plato.algorithms import registry as algorithms_registry
 from plato.config import Config
 from plato.datasources import registry as datasources_registry
 from plato.processors import registry as processor_registry
+from plato.samplers.base import DataType
 from plato.servers import base
 from plato.trainers import registry as trainers_registry
 from plato.utils import csv_processor
@@ -102,7 +103,7 @@ class Server(base.Server):
             self.validationset = self.datasource.get_validation_set()
             if hasattr(Config().data, "testset_size"):
                 self.validationset_sampler = all_inclusive.Sampler(
-                    self.datasource, testing=True
+                    self.datasource, DataType.Validation
                 )
         
         if hasattr(Config().server, "do_final_test") and Config().server.do_final_test:
@@ -112,14 +113,9 @@ class Server(base.Server):
                 self.datasource = self.custom_datasource()
             
             self.testset = self.datasource.get_test_set()
-            if Config().data.datasource == "Embryos": 
-                self.testset_sampler = samplers_registry.get(
-                    self.datasource, client_id=0, testing=True
-                )
-            else:
-                self.validationset_sampler = all_inclusive.Sampler(
-                    self.datasource, testing=True
-                )
+            self.testset_sampler = all_inclusive.Sampler(
+                self.datasource, 0, DataType.Test)
+
 
         # Initialize the csv file which will record results
         result_csv_file = f"{Config().params['result_path']}/{os.getpid()}.csv"
@@ -327,10 +323,9 @@ class Server(base.Server):
         precision = 0
         recall = 0
         for update in updates:
-            if Config().data.datasource == "Embryos":
-                auroc += update.report.auroc * (
-                    update.report.num_samples / total_samples
-                )
+            auroc += update.report.auroc * (
+                update.report.num_samples / total_samples
+            )
             accuracy += update.report.accuracy * (
                 update.report.num_samples / total_samples
             )
