@@ -44,7 +44,7 @@ data:
     #concentration: 5
 
     # The random seed for sampling data
-    #random_seed: 1
+    random_seed: 42
 
 trainer:
     # The type of the trainer
@@ -57,7 +57,7 @@ trainer:
     max_concurrency: 10
 
     # The target accuracy
-    target_accuracy: 0.98
+    #target_accuracy: 0.98
 
     # The machine learning model
     model_name: lowgpuCifar10
@@ -74,13 +74,13 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "FedAvg-xx-C23"
+    experiment_name: "FedAvg-LR1e3-C10"
     optimizer:
         lr: 0.001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2
         weight_decay: 0
 
 results:
-    result_path: results/fedavg/embryos
+    result_path: results/fedavg/cifar10
     # Write the following parameter(s) into a CSV
     types: round, elapsed_time, comm_time, round_time, comm_overhead, train_loss, test_loss, auroc, accuracy, precision, recall

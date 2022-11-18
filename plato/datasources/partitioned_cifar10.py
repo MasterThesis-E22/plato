@@ -2,7 +2,7 @@ from typing import Optional, Callable, Tuple, Any
 
 from torchvision import datasets, transforms
 import numpy as np
-from PIL.Image import Image
+from PIL import Image as Image
 from torchvision.datasets import VisionDataset
 from torchvision.transforms import transforms
 from wandb.wandb_torch import torch
@@ -38,7 +38,7 @@ class CustomCifar10(VisionDataset):
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
-        img = Image.fromarray(img.numpy(), mode="L")
+        img = Image.fromarray(img, mode="L")
 
         if self.transform is not None:
             img = self.transform(img)
@@ -55,7 +55,7 @@ class DataSource(base.DataSource):
         self.trainset = None
         self.testset = None
         self.validationset = None
-        self._root = "TODO UPDATE ME"
+        self._root = "/mnt/data/mlr_ahj_datasets/cifar10/lda/concentration_10"
 
         _transform = transforms.Compose([
             transforms.ToTensor(),
