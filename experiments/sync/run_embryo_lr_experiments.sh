@@ -10,8 +10,9 @@ echo "$base_path"
 
 #experiments=("test3")
 #experiments=("test1" "test2" "test3")
-experiments=("fedavg_r100_e1_lr1e5" "fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
+#experiments=("fedavg_r100_e1_lr1e5" "fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
 #experiments=("fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
+experiments=("fedavg_r100_e1_lr5e4" "fedavg_r100_e1_lr5e5")
 echo "=============================================================================================="
 echo "Starting Learning rate experiments"
 echo "=============================================================================================="

@@ -16,7 +16,7 @@ class CustomCifar10(VisionDataset):
             self, data, targets, transform: Optional[Callable] = transforms.ToTensor(),
             target_transform: Optional[Callable] = None) \
             -> None:
-        super().__init__(transform=transform, target_transform=target_transform)
+        super().__init__(root=None, transform=transform, target_transform=target_transform)
         self.data = data
         self.transform = transform
         self.target_transform = target_transform
@@ -38,7 +38,7 @@ class CustomCifar10(VisionDataset):
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
-        img = Image.fromarray(img, mode="L")
+        img = Image.fromarray(img)
 
         if self.transform is not None:
             img = self.transform(img)
