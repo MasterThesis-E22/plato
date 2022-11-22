@@ -60,7 +60,7 @@ trainer:
     target_accuracy: 0.98
 
     # The machine learning model
-    model_name: lowgpu
+    model_name: lowgpuEmbryosNew
 
     # Number of epoches for local training in each communication round
     epochs: 1

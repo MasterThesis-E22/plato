@@ -75,7 +75,7 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "fedavg-5-clients"
+    experiment_name: "FedAvg-LR1e4-C5"
     optimizer: !include common_lr_config.yml
 
 results:
