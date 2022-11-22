@@ -3,10 +3,10 @@ clients:
     type: simple
 
     # The total number of clients
-    total_clients: 15
+    total_clients: 23
 
     # The number of clients selected in each round
-    per_round: 15
+    per_round: 23
 
     # Should the clients compute test accuracy locally?
     do_test: true
@@ -17,7 +17,7 @@ clients:
 
 server:
     address: 127.0.0.1
-    port: 8001
+    port: 8000
     synchronous: true
     simulate_wall_time: true
     do_test: false
@@ -33,7 +33,7 @@ data:
     # The training and testing dataset
     datasource: Embryos
     size_sorted: true
-    
+
     # Number of samples in each partition
     #partition_size: 600
 
@@ -75,8 +75,11 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "fedavg-15-clients"
-    optimizer: !include common_lr_config.yml
+    experiment_name: "FedAvg-LR5e4-C23"
+    optimizer:
+        lr: 0.0005
+        momentum: 0.0 # learning rate is fixed as in Appendix C.2
+        weight_decay: 0
 
 results:
     result_path: results/fedavg/embryos
