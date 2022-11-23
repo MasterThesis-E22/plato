@@ -222,6 +222,14 @@ class Server(base.Server):
         if hasattr(Config().server, "do_test") and not Config().server.do_test:
             # Compute the average accuracy from client reports
             self.auroc, self.accuracy, self.test_loss, self.train_loss, self.precision, self.recall = self.metric_averaging(self.updates)
+            if (Config().data.datasource == "Embryos"):
+                if self.auroc > self.best_model_metric:
+                    self.best_model_round = self.current_round
+                    self.best_model_metric = self.auroc
+            else:
+                if self.accuracy > self.best_model_metric:
+                    self.best_model_round = self.current_round
+                    self.best_model_metric = self.accuracy
 
             logging.info(
                 "[%s] Average client auroc: %.2f%%.", self, self.auroc

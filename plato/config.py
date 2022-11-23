@@ -202,6 +202,8 @@ class Config:
                 Config.params["checkpoint_path"] = os.path.join(
                     Config.params["base_path"], Config().server.checkpoint_path
                 )
+                Config.params["checkpoint_path"] = os.path.join(Config.params["checkpoint_path"],
+                                                           config["parameters"]["experiment_name"])
             else:
                 Config.params["checkpoint_path"] = os.path.join(
                     Config.params["base_path"], "checkpoints"
@@ -216,6 +218,8 @@ class Config:
                 Config.params["result_path"] = os.path.join(
                     Config.params["base_path"], Config.results.result_path
                 )
+                Config.params["result_path"] = os.path.join(Config.params["result_path"],
+                                                                config["parameters"]["experiment_name"])
             else:
                 Config.params["result_path"] = os.path.join(
                     Config.params["base_path"], "results"

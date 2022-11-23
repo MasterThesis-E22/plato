@@ -476,7 +476,7 @@ class Trainer(base.Trainer):
         :param sampler: the sampler for the trainloader to use.
         """
         return torch.utils.data.DataLoader(
-            dataset=trainset, shuffle=False, batch_size=batch_size, sampler=sampler
+            dataset=trainset, shuffle=False, batch_size=batch_size
         )
 
     # pylint: disable=unused-argument
@@ -492,7 +492,7 @@ class Trainer(base.Trainer):
         batch_size = config["batch_size"]
 
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=batch_size, shuffle=False, sampler=sampler
+            testset, batch_size=batch_size, shuffle=False
         )
 
         correct = 0
@@ -531,10 +531,10 @@ class Trainer(base.Trainer):
                     correct += (predicted == labels).sum().item()
                     total += labels.size(0)
                     
-                    auc(predicted , labels)
-                    acc(predicted, labels)
-                    prec(predicted, labels)
-                    rec(predicted, labels)
+                    auc(outputs , labels)
+                    acc(outputs, labels)
+                    prec(outputs, labels)
+                    rec(outputs, labels)
                 else:
                     loss_total += loss_criterion.get()(outputs, labels).item()
                     _, predicted = torch.max(outputs.data, 1)

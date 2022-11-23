@@ -103,6 +103,8 @@ class Server:
             else True
         )
         self.wandb_logger = wandb_logger.WANDBLogger(None)
+        self.best_model_round = 0
+        self.best_model_metric = 0
 
         # Starting from the default server callback class, add all supplied server callbacks
         self.callbacks = [PrintProgressCallback]
@@ -1302,6 +1304,12 @@ class Server:
         if not (hasattr(Config().server, "do_final_test") and Config().server.do_final_test):
             return
         else:
+            logging.info(
+                f"[{self}] loading best model from round({self.best_model_round}) with metric({self.best_model_metric})  ", )
+            checkpoint_path = Config().params["checkpoint_path"]
+            model_name = Config().trainer.model_name
+            best_model_name = f"checkpoint_{model_name}_{self.best_model_round}.pth"
+            self.trainer.load_model(best_model_name, checkpoint_path)
         # 1. 
             loss, auroc, accuracy, precision, recall, plot_data = self.trainer.test(self.testset, self.testset_sampler)
             #print(plot_data)
