@@ -221,7 +221,8 @@ class Server(base.Server):
         # Testing the global model accuracy
         if hasattr(Config().server, "do_test") and not Config().server.do_test:
             # Compute the average accuracy from client reports
-            self.auroc, self.accuracy, self.test_loss, self.train_loss, self.precision, self.recall = self.metric_averaging(self.updates)
+            self.auroc, self.accuracy, self.test_loss, self.train_loss,\
+            self.precision, self.recall, self.f1, self.aupr = self.metric_weighted_averaging(self.updates)
             if (Config().data.datasource == "Embryos"):
                 if self.auroc > self.best_model_metric:
                     self.best_model_round = self.current_round
@@ -316,42 +317,6 @@ class Server(base.Server):
             "precision": self.precision,
             "recall": self.recall
         }
-
-    @staticmethod
-    def metric_averaging(updates):
-        """Compute the average accuracy across clients."""
-        # Get total number of samples
-        total_samples = sum(update.report.num_samples for update in updates)
-
-        # Perform weighted averaging
-        auroc = 0
-        accuracy = 0
-        test_loss = 0
-        train_loss = 0
-        precision = 0
-        recall = 0
-        for update in updates:
-            auroc += update.report.auroc * (
-                update.report.num_samples / total_samples
-            )
-            accuracy += update.report.accuracy * (
-                update.report.num_samples / total_samples
-            )
-            test_loss += update.report.validation_loss * (
-                update.report.num_samples / total_samples
-            )
-            train_loss += update.report.train_loss * (
-                    update.report.num_samples / total_samples
-            )
-            precision += update.report.precision * (
-                    update.report.num_samples / total_samples
-            )
-            recall += update.report.recall * (
-                    update.report.num_samples / total_samples
-            )
-
-
-        return auroc, accuracy, test_loss, train_loss, precision, recall
 
     def weights_received(self, weights_received):
         """

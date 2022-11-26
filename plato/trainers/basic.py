@@ -12,7 +12,9 @@ import time
 from types import SimpleNamespace
 
 import torch
-from torchmetrics.classification import BinaryAUROC, BinaryAccuracy, BinaryPrecision, BinaryRecall, MulticlassAUROC, MulticlassAccuracy, MulticlassPrecision, MulticlassRecall
+from torchmetrics.classification import BinaryAUROC, BinaryAccuracy, BinaryPrecision, BinaryRecall, MulticlassAUROC, \
+    MulticlassAccuracy, MulticlassPrecision, MulticlassRecall, BinaryF1Score, BinaryAveragePrecision, MulticlassF1Score, \
+    MulticlassAveragePrecision
 from plato.callbacks.handler import CallbackHandler
 from plato.callbacks.trainer import PrintProgressCallback
 from plato.config import Config
@@ -326,9 +328,9 @@ class Trainer(base.Trainer):
 
         try:
             if sampler is None:
-                loss, auroc, accuracy, precision, recall, predictions = self.test_model(config, testset, **kwargs)
+                loss, auroc, accuracy, precision, recall, predictions, f1, aupr = self.test_model(config, testset, **kwargs)
             else:
-                loss, auroc, accuracy, precision, recall, predictions = self.test_model(config, testset, sampler.get(), **kwargs)
+                loss, auroc, accuracy, precision, recall, predictions, f1, aupr = self.test_model(config, testset, sampler.get(), **kwargs)
 
         except Exception as testing_exception:
             logging.info("Testing on client #%d failed.", self.client_id)
@@ -356,9 +358,15 @@ class Trainer(base.Trainer):
 
             filename = f"{model_name}_{self.client_id}_{config['run_id']}.recall"
             self.save_recall(recall, filename)
+
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.f1"
+            self.save_f1(f1, filename)
+
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.aupr"
+            self.save_aupr(aupr, filename)
             
         else:
-            return loss, auroc, accuracy, precision, recall, predictions
+            return loss, auroc, accuracy, precision, recall, predictions, f1, aupr
 
     def test(self, testset, sampler=None, **kwargs) -> (float, float):
         """Testing the model using the provided test dataset.
@@ -391,7 +399,7 @@ class Trainer(base.Trainer):
                 auroc = self.load_auroc(filename)
                 
                 filename = (
-                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.predictions"
+                   f"{model_name}_{self.client_id}_{Config().params['run_id']}.predictions"
                 )
                 predictions = self.load_predictions(filename)
                 
@@ -415,6 +423,16 @@ class Trainer(base.Trainer):
                 )
                 recall = self.load_recall(filename)
 
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.f1"
+                )
+                f1 = self.load_f1(filename)
+
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.aupr"
+                )
+                aupr = self.load_aupr(filename)
+
             except OSError as error:  # the model file is not found, training failed
                 raise ValueError(
                     f"Testing on client #{self.client_id} failed."
@@ -422,9 +440,9 @@ class Trainer(base.Trainer):
 
             self.pause_training()
         else:
-            loss, auroc, accuracy, precision, recall, predictions = self.test_process(config, testset, **kwargs)
+            loss, auroc, accuracy, precision, recall, predictions, f1, aupr = self.test_process(config, testset, **kwargs)
 
-        return loss, auroc, accuracy, precision, recall, predictions
+        return loss, auroc, accuracy, precision, recall, predictions, f1, aupr
 
     def obtain_model_update(self, wall_time):
         """
@@ -502,16 +520,20 @@ class Trainer(base.Trainer):
         self.model.to(self.device)
         
         if (hasattr(Config.trainer, "loss_criterion") and Config().trainer.loss_criterion == "BCEWithLogitsLoss"):
-            auc = BinaryAUROC().to(self.device)
+            rocauc = BinaryAUROC().to(self.device)
             acc = BinaryAccuracy().to(self.device)
             prec = BinaryPrecision().to(self.device)
             rec = BinaryRecall().to(self.device)
+            f1 = BinaryF1Score().to(self.device)
+            prauc = BinaryAveragePrecision().to(self.device)
         else:
             num_classes = Config().results.num_classes if hasattr(Config().results, "num_classes") else 10       
-            auc = MulticlassAUROC(num_classes=num_classes).to(self.device)
+            rocauc = MulticlassAUROC(average='macro', num_classes=num_classes).to(self.device)
             acc = MulticlassAccuracy(average='macro', num_classes=num_classes).to(self.device)
             prec = MulticlassPrecision(average='macro', num_classes=num_classes).to(self.device)
             rec = MulticlassRecall(average='macro', num_classes=num_classes).to(self.device)
+            f1 = MulticlassF1Score(average='macro', num_classes=num_classes).to(self.device)
+            prauc = MulticlassAveragePrecision(average='macro', num_classes=num_classes).to(self.device)
         
         with torch.no_grad():
             test_outputs = []
@@ -531,20 +553,24 @@ class Trainer(base.Trainer):
                     correct += (predicted == labels).sum().item()
                     total += labels.size(0)
                     
-                    auc(outputs , labels)
+                    rocauc(outputs, labels)
                     acc(outputs, labels)
                     prec(outputs, labels)
                     rec(outputs, labels)
+                    f1(outputs, labels)
+                    prauc(outputs, labels)
                 else:
                     loss_total += loss_criterion.get()(outputs, labels).item()
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
                 
-                    auc(outputs , labels)
+                    rocauc(outputs, labels)
                     acc(outputs, labels)
                     prec(outputs, labels)
                     rec(outputs, labels)
+                    f1(outputs, labels)
+                    prauc(outputs, labels)
                 
                 test_outputs.extend(outputs)
                 test_labels.extend(labels)
@@ -588,10 +614,13 @@ class Trainer(base.Trainer):
         accuracy = acc.compute()
         precision = prec.compute()
         recall = rec.compute()
-        auroc = auc.compute()
+        auroc = rocauc.compute()
+        f1_score = f1.compute()
+        aupr = prauc.compute()
         
         #accuracy = correct / total
-        return loss, auroc.item(), accuracy.item(), precision.item(), recall.item(), predictionsDictionary
+        return loss, auroc.item(), accuracy.item(), precision.item(),\
+               recall.item(), predictionsDictionary, f1_score.item(), aupr.item()
 
     def get_optimizer(self, model):
         """Returns the optimizer."""

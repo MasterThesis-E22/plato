@@ -14,6 +14,7 @@ clients:
     # Whether or not to simulate communication when running on a single machine
     comm_simulation: true
     compute_comm_time: true
+    random_seed: 42
 
 server:
     address: 127.0.0.1
@@ -28,6 +29,7 @@ server:
 
     downlink_bandwidth: 100
     uplink_bandwidth: 100
+    random_seed: 42
 
 data:
     # The training and testing dataset
@@ -44,7 +46,8 @@ data:
     #concentration: 5
 
     # The random seed for sampling data
-    #random_seed: 1
+    reload_data: true
+    random_seed: 42
 
 trainer:
     # The type of the trainer

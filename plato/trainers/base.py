@@ -114,6 +114,40 @@ class Trainer(ABC):
 
         with open(recall_path, "w", encoding="utf-8") as file:
             file.write(str(recall))
+
+    @staticmethod
+    def save_f1(f1, filename=None):
+        """Saving the test f1 to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            recall_path = f"{model_path}/{filename}"
+        else:
+            recall_path = f"{model_path}/{model_name}.f1"
+
+        with open(recall_path, "w", encoding="utf-8") as file:
+            file.write(str(f1))
+
+    @staticmethod
+    def save_aupr(f1, filename=None):
+        """Saving the test aupr to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            recall_path = f"{model_path}/{filename}"
+        else:
+            recall_path = f"{model_path}/{model_name}.aupr"
+
+        with open(recall_path, "w", encoding="utf-8") as file:
+            file.write(str(f1))
             
     @staticmethod
     def save_predictions(predictions, filename=None):
@@ -209,6 +243,36 @@ class Trainer(ABC):
         with open(recall_path, "r", encoding="utf-8") as file:
             recall = float(file.read())
         return recall
+
+    @staticmethod
+    def load_f1(filename=None):
+        """Loading the f1 from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            f1_path = f"{model_path}/{filename}"
+        else:
+            f1_path = f"{model_path}/{model_name}.f1"
+
+        with open(f1_path, "r", encoding="utf-8") as file:
+            f1 = float(file.read())
+        return f1
+
+    @staticmethod
+    def load_aupr(filename=None):
+        """Loading the aupr from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            aupr_path = f"{model_path}/{filename}"
+        else:
+            aupr_path = f"{model_path}/{model_name}.aupr"
+
+        with open(aupr_path, "r", encoding="utf-8") as file:
+            aupr = float(file.read())
+        return aupr
     
     @staticmethod
     def load_predictions(filename=None):

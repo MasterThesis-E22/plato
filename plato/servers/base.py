@@ -1283,10 +1283,98 @@ class Server:
         Method called before closing the server.
         """
 
+    @staticmethod
+    def metric_weighted_averaging(updates):
+        """Compute the weighted average metrics across clients."""
+        # Get total number of samples
+        total_samples = sum(update.report.num_samples for update in updates)
+
+        # Perform weighted averaging
+        auroc = 0
+        accuracy = 0
+        test_loss = 0
+        train_loss = 0
+        precision = 0
+        recall = 0
+        f1 = 0
+        aupr = 0
+        for update in updates:
+            auroc += update.report.auroc * (update.report.num_samples / total_samples)
+            accuracy += update.report.accuracy * (update.report.num_samples / total_samples)
+            test_loss += update.report.validation_loss * (update.report.num_samples / total_samples)
+            train_loss += update.report.train_loss * (update.report.num_samples / total_samples)
+            precision += update.report.precision * (update.report.num_samples / total_samples)
+            recall += update.report.recall * (update.report.num_samples / total_samples)
+            f1 += update.report.f1 * (update.report.num_samples / total_samples)
+            aupr += update.report.aupr * (update.report.num_samples / total_samples)
+
+        return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr
+
+    @staticmethod
+    def metric_averaging(updates):
+        """Compute the average metrics across clients."""
+        # Get total number of clients
+        total_clients = len(updates)
+
+        # Perform averaging
+        auroc = 0
+        accuracy = 0
+        test_loss = 0
+        train_loss = 0
+        precision = 0
+        recall = 0
+        f1 = 0
+        aupr = 0
+        for update in updates:
+            auroc += update.report.auroc / total_clients
+            accuracy += update.report.accuracy / total_clients
+            test_loss += update.report.validation_loss / total_clients
+            train_loss += update.report.train_loss / total_clients
+            precision += update.report.precision / total_clients
+            recall += update.report.recall / total_clients
+            f1 += update.report.f1 / total_clients
+            aupr += update.report.aupr / total_clients
+
+        return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr
+
     def log_updates_to_wandb(self):
+        # Log individual client metrics
         for update in self.updates:
             self.log_client_update_to_wandb(getattr(update, "client_id"), getattr(update, "report"))
-            
+
+        # Log average of client metrics
+        auroc, accuracy, test_loss, \
+        train_loss, precision, recall, f1, aupr = self.metric_averaging(self.updates)
+
+        self.wandb_logger.log({
+            f"round": self.current_round,
+            f"train/avg_loss": train_loss,
+
+            f"val/avg_auroc": auroc,
+            f"val/avg_accuracy": accuracy,
+            f"val/avg_loss": test_loss,
+            f"val/avg_precision": precision,
+            f"val/avg_recall": recall,
+            f"val/avg_f1": f1,
+            f"val/avg_aupr": aupr,
+            }, step=self.current_round)
+
+        # Log weighted average of client metrics
+        auroc, accuracy, test_loss, \
+        train_loss, precision, recall, f1, aupr = self.metric_weighted_averaging(self.updates)
+        self.wandb_logger.log({
+            f"round": self.current_round,
+            f"train/weighted_avg_loss": train_loss,
+
+            f"val/weighted_avg_auroc": auroc,
+            f"val/weighted_avg_accuracy": accuracy,
+            f"val/weighted_avg_loss": test_loss,
+            f"val/weighted_avg_precision": precision,
+            f"val/weighted_avg_recall": recall,
+            f"val/weighted_avg_f1": f1,
+            f"val/weighted_avg_aupr": aupr,
+        }, step=self.current_round)
+
     def log_client_update_to_wandb(self, clientId, report):
         logging.info("[%s] Logging report from [Client-%d]", self, clientId)
         for attribute in list(report.__dict__):
@@ -1311,7 +1399,7 @@ class Server:
             best_model_name = f"checkpoint_{model_name}_{self.best_model_round}.pth"
             self.trainer.load_model(best_model_name, checkpoint_path)
         # 1. 
-            loss, auroc, accuracy, precision, recall, plot_data = self.trainer.test(self.testset, self.testset_sampler)
+            loss, auroc, accuracy, precision, recall, plot_data, f1, aupr = self.trainer.test(self.testset, self.testset_sampler)
             #print(plot_data)
         # 2. 
             #Logging parameters
@@ -1320,7 +1408,9 @@ class Server:
             self.wandb_logger.log({"final/central_test_accuracy": accuracy})
             self.wandb_logger.log({"final/central_test_precision": precision})
             self.wandb_logger.log({"final/central_test_recall": recall})
-            
+            self.wandb_logger.log({"final/central_test_f1": f1})
+            self.wandb_logger.log({"final/central_test_aupr": aupr})
+
             #logging auroc curve and confusion matrix
             if Config().data.datasource == "Embryos": 
                 self.wandb_logger.log({"final/roc" : wandb.plot.roc_curve(
@@ -1336,6 +1426,10 @@ class Server:
                     numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
                     ["No", "Yes"]
                 )})
+                self.wandb_logger.log({"final/pr": wandb.plot.pr_curve(
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32),
+                    y_probas=numpy.asarray(plot_data["probabilities"], dtype=numpy.float32),
+                    labels=["No", "Yes"])})
             else:
                 self.wandb_logger.log({"final/roc" : wandb.plot.roc_curve(
                     y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
@@ -1350,3 +1444,7 @@ class Server:
                     numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
                     ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
                 )})
+                self.wandb_logger.log({"final/pr": wandb.plot.pr_curve(
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32),
+                    y_probas=numpy.asarray(plot_data["logits"], dtype=numpy.float32),
+                    labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])})
