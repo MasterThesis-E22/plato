@@ -9,7 +9,7 @@ fi
 echo "$base_path"
 
 #experiments=("test1" "test2" "test3")
-experiments=("fedavg_5clients" "fedavg_10clients" "fedavg_15clients" "fedavg_23clients")
+experiments=("fedavg_5clients" "fedavg_10clients" "fedavg_15clients" "fedavg_23clients" "fedavg_5clients_5e5" "fedavg_10clients_5e5" "fedavg_15clients_5e5" "fedavg_23clients_5e5")
 echo "=============================================================================================="
 echo "Starting Client Experiments"
 echo "=============================================================================================="
