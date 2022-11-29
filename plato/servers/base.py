@@ -648,6 +648,7 @@ class Server:
 
     def choose_clients(self, clients_pool, clients_count):
         """Choose a subset of the clients to participate in each round."""
+        logging.info("[%s] Clients count of %d must be smaller or equal to clients pool of %d", self, clients_count, clients_pool)
         assert clients_count <= len(clients_pool)
         random.setstate(self.prng_state)
 
