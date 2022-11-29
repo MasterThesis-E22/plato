@@ -328,3 +328,4 @@ class Server(base.Server):
         """
         Method called after the updated weights have been aggregated.
         """
+        self.aggregated_updates = updates

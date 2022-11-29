@@ -92,6 +92,7 @@ class Server:
         self.accuracy = 0
         self.reports = {}
         self.updates = []
+        self.aggregated_updates = []
         self.client_payload = {}
         self.client_chunks = {}
         self.s3_client = None
@@ -469,9 +470,11 @@ class Server:
                 # If the server is simulating the wall clock time, some of the clients who
                 # reported may not have been aggregated; they should be excluded from the next
                 # round of client selection
+                aggregated_clients = [update.client_id for update in self.aggregated_updates]
                 reporting_client_ids = [
-                    client[2]["client_id"] for client in self.reported_clients
+                    client[2]["client_id"] for client in self.reported_clients if client[2]["client_id"] not in aggregated_clients
                 ]
+                
 
                 selectable_clients = [
                     client
@@ -480,6 +483,10 @@ class Server:
                     and client not in reporting_client_ids
                 ]
 
+                logging.info("!--[{}] Clients still training {}".format(self, training_client_ids))
+                logging.info("!--[{}] Clients not aggregated {}".format(self, reporting_client_ids))
+                logging.info("!--[{}] Clients allowed for selection {}".format(self, selectable_clients))
+                
                 if self.simulate_wall_time:
                     self.selected_clients = self.choose_clients(
                         selectable_clients, len(self.current_processed_clients)
@@ -495,6 +502,7 @@ class Server:
 
             self.current_reported_clients = {}
             self.current_processed_clients = {}
+            self.aggregated_updates = []
 
             # There is no need to clear the list of reporting clients if we are
             # simulating the wall clock time on the server. This is because
@@ -648,7 +656,7 @@ class Server:
 
     def choose_clients(self, clients_pool, clients_count):
         """Choose a subset of the clients to participate in each round."""
-        logging.info("[%s] Clients count of %d must be smaller or equal to clients pool of %d", self, clients_count, clients_pool)
+        logging.info("!--[%s] Clients count of %d must be smaller or equal to clients pool of %d", self, clients_count, len(clients_pool))
         assert clients_count <= len(clients_pool)
         random.setstate(self.prng_state)
 
