@@ -1354,8 +1354,7 @@ class Server:
             self.log_client_update_to_wandb(getattr(update, "client_id"), getattr(update, "report"))
 
         # Log average of client metrics
-        auroc, accuracy, test_loss, \
-        train_loss, precision, recall, f1, aupr, staleness = self.metric_averaging(self.updates)
+        auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr, staleness = self.metric_averaging(self.updates)
 
         self.wandb_logger.log({
             f"round": self.current_round,
