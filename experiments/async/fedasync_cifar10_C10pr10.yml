@@ -17,7 +17,7 @@ clients:
 
 server:
     address: 127.0.0.1
-    port: 8000
+    port: 8005
     synchronous: false
     simulate_wall_time: false
     do_test: false
@@ -42,7 +42,7 @@ server:
 
 data:
     # The training and testing dataset
-    datasource: PartitionedMNIST
+    datasource: PartitionedCIFAR10
 
     # Number of samples in each partition
     #partition_size: 600
@@ -72,7 +72,7 @@ trainer:
     #target_accuracy: 0.98
 
     # The machine learning model
-    model_name: lowgpuMnist
+    model_name: lowgpuCifar10
 
     # Number of epoches for local training in each communication round
     epochs: 1

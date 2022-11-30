@@ -6,7 +6,7 @@ clients:
     total_clients: 10
 
     # The number of clients selected in each round
-    per_round: 10
+    per_round: 5
 
     # Should the clients compute test accuracy locally?
     do_test: true
@@ -17,7 +17,7 @@ clients:
 
 server:
     address: 127.0.0.1
-    port: 8000
+    port: 8005
     synchronous: false
     simulate_wall_time: false
     do_test: false
@@ -42,7 +42,7 @@ server:
 
 data:
     # The training and testing dataset
-    datasource: PartitionedMNIST
+    datasource: PartitionedCIFAR10
 
     # Number of samples in each partition
     #partition_size: 600
@@ -72,8 +72,8 @@ trainer:
     #target_accuracy: 0.98
 
     # The machine learning model
-    model_name: lowgpuMnist
-
+    model_name: lowgpuCifar10
+    
     # Number of epoches for local training in each communication round
     epochs: 1
     batch_size: 64
@@ -86,11 +86,12 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "FedAsync-lr1e4-C10pr10"
+    experiment_name: "FedAsync-lr1e4-C10pr5"
     optimizer:
         lr: 0.001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2
         weight_decay: 0
+
 
 results:
     result_path: results/fedasync/mnist

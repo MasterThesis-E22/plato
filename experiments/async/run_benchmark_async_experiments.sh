@@ -8,11 +8,8 @@ if [[ -z "$base_path" ]] ; then
 fi
 echo "$base_path"
 
-#experiments=("test3")
-#experiments=("test1" "test2" "test3")
-#experiments=("fedavg_r100_e1_lr1e5" "fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
-#experiments=("fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
-experiments=("fedasync_mnist_C10pr5" "fedasync_mnist_C10pr10")
+experiments=("fedasync_cifar10_C10pr5" "fedasync_cifar10_C10pr10")
+#experiments=("fedasync_mnist_C10pr5" "fedasync_mnist_C10pr10" "fedasync_cifar10_C10pr5" "fedasync_cifar10_C10pr10")
 echo "=============================================================================================="
 echo "Starting Benchmark Async experiments"
 echo "=============================================================================================="

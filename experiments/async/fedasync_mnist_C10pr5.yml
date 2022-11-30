@@ -87,7 +87,11 @@ algorithm:
 
 parameters:
     experiment_name: "FedAsync-lr1e4-C10pr5"
-    optimizer: !include common_lr_config.yml
+    optimizer:
+        lr: 0.001
+        momentum: 0.0 # learning rate is fixed as in Appendix C.2
+        weight_decay: 0
+
 
 results:
     result_path: results/fedasync/mnist
