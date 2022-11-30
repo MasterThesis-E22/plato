@@ -1067,7 +1067,7 @@ class Server:
             # the same applies when we are running in synchronous mode.
             client = client_info[2]
             client_staleness = self.current_round - client["starting_round"]
-
+            
             self.updates.append(
                 SimpleNamespace(
                     client_id=client["client_id"],
@@ -1334,6 +1334,7 @@ class Server:
         recall = 0
         f1 = 0
         aupr = 0
+        staleness = 0
         for update in updates:
             auroc += update.report.auroc / total_clients
             accuracy += update.report.accuracy / total_clients
@@ -1343,6 +1344,7 @@ class Server:
             recall += update.report.recall / total_clients
             f1 += update.report.f1 / total_clients
             aupr += update.report.aupr / total_clients
+            staleness += (update.staleness /total_clients)
 
         return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr
 
@@ -1353,7 +1355,7 @@ class Server:
 
         # Log average of client metrics
         auroc, accuracy, test_loss, \
-        train_loss, precision, recall, f1, aupr = self.metric_averaging(self.updates)
+        train_loss, precision, recall, f1, aupr, staleness = self.metric_averaging(self.updates)
 
         self.wandb_logger.log({
             f"round": self.current_round,
@@ -1366,6 +1368,7 @@ class Server:
             f"val/avg_recall": recall,
             f"val/avg_f1": f1,
             f"val/avg_aupr": aupr,
+            f"avg_staleness": staleness,
             }, step=self.current_round)
 
         # Log weighted average of client metrics
