@@ -115,6 +115,10 @@ class Server(base.Server):
             self.testset = self.datasource.get_test_set()
             self.testset_sampler = all_inclusive.Sampler(
                 self.datasource, 0, DataType.Test)
+            
+            self.validationset = self.datasource.get_validation_set()
+            self.validation_sampler = all_inclusive.Sampler(
+                self.datasource, 0, DataType.Validation)
 
 
         # Initialize the csv file which will record results
@@ -263,9 +267,25 @@ class Server(base.Server):
         if hasattr(Config().trainer, "target_perplexity"):
             logging.info("[%s] Global model perplexity: %.2f\n", self, self.accuracy)
         else:
-            logging.info(
-                "[%s] Global model accuracy: %.2f%%\n", self, 100 * self.accuracy
-            )
+            if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
+                validation_loss, auroc, accuracy, precision, recall, _, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
+                logging.info(
+                    "[%s] Global model accuracy: %.2f%%\n", self, 100*accuracy
+                )
+                self.wandb_logger.log({
+                f"round": self.current_round,
+                f"val/central_auroc": auroc,
+                f"val/central_accuracy": accuracy,
+                f"val/central_loss": validation_loss,
+                f"val/central_precision": precision,
+                f"val/central_recall": recall,
+                f"val/central_f1": f1,
+                f"val/central_aupr": aupr
+                }, step=self.current_round)
+            else:    
+                logging.info(
+                    "[%s] Global model accuracy: %.2f%%\n", self, 100 * self.accuracy
+                )
 
         await self.wrap_up_processing_reports()
 

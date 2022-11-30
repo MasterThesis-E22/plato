@@ -1344,7 +1344,7 @@ class Server:
             recall += update.report.recall / total_clients
             f1 += update.report.f1 / total_clients
             aupr += update.report.aupr / total_clients
-            staleness += (update.staleness /total_clients)
+            staleness += update.staleness /total_clients
 
         return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr, staleness
 
