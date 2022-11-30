@@ -1346,7 +1346,7 @@ class Server:
             aupr += update.report.aupr / total_clients
             staleness += (update.staleness /total_clients)
 
-        return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr
+        return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr, staleness
 
     def log_updates_to_wandb(self):
         # Log individual client metrics
