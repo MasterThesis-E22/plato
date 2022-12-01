@@ -25,15 +25,22 @@ server:
     do_final_test: true
 
     # Parameter for FedAsync
-    periodic_interval: 5
+    #periodic_interval: 5
+    #staleness_bound: 99999
+    #minimum_clients_aggregated: 1
+    #mixing_hyperparameter: 0.9
+    #adaptive_mixing: true
+    #staleness_weighting_function:
+    #    type: Hinge
+    #    a: 10
+    #    b: 4
+    periodic_interval: 10
     staleness_bound: 99999
     minimum_clients_aggregated: 1
-    mixing_hyperparameter: 0.9
+    mixing_hyperparameter: 1
     adaptive_mixing: true
     staleness_weighting_function:
-        type: Hinge
-        a: 10
-        b: 4
+        type: Constant
 
     checkpoint_path: models/fedasync/mnist
     model_path: models/fedasync/mnist

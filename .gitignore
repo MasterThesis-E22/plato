@@ -169,3 +169,5 @@ experiments/async/models
 experiments/sync/output
 experiments/async/output
 wandb/latest-run
+experiments/async/nohup-s5.out
+experiments/async/nohup-s10.out

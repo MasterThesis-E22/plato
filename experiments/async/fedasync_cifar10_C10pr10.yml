@@ -34,7 +34,7 @@ server:
     #    type: Hinge
     #    a: 10
     #    b: 4
-    periodic_interval: 5
+    periodic_interval: 10
     staleness_bound: 99999
     minimum_clients_aggregated: 1
     mixing_hyperparameter: 1
