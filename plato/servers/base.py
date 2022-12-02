@@ -1351,7 +1351,7 @@ class Server:
     def log_updates_to_wandb(self):
         # Log individual client metrics
         for update in self.updates:
-            self.log_client_update_to_wandb(getattr(update, "client_id"), getattr(update, "report"))
+            self.log_client_update_to_wandb(update)
 
         # Log average of client metrics
         auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr, staleness = self.metric_averaging(self.updates)
@@ -1386,12 +1386,19 @@ class Server:
             f"val/weighted_avg_aupr": aupr,
         }, step=self.current_round)
 
-    def log_client_update_to_wandb(self, clientId, report):
-        logging.info("[%s] Logging report from [Client-%d]", self, clientId)
+
+    def log_client_update_to_wandb(self, update):
+        client_id = update.client_id
+        report = update.report
+
+        logging.info("[%s] Logging report from [Client-%d]", self, client_id)
+        if hasattr(update, "staleness"):
+            self.wandb_logger.log({f"client#{client_id}/staleness": update.staleness, "round": self.current_round}, step=self.current_round)
+
         for attribute in list(report.__dict__):
             if attribute == "predictions": continue
             else:
-                self.wandb_logger.log({f"client#{clientId}/{attribute}": getattr(report, attribute), "round": self.current_round}, step=self.current_round)
+                self.wandb_logger.log({f"client#{client_id}/{attribute}": getattr(report, attribute), "round": self.current_round}, step=self.current_round)
             
     def do_final_model_test(self):
         '''

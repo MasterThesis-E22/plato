@@ -61,14 +61,27 @@ class Server(fedavg.Server):
     def aggregate_weights(self, updates, baseline_weights, weights_received):
         """Process the client reports by aggregating their weights."""
         # Calculate the new mixing hyperparameter with client's staleness
-        client_staleness = updates[0].staleness
+        updated_model = None
+        print(f"aggregate_weights with {len(updates)} updates")
+        for index, update in enumerate(updates):
 
-        if self.adaptive_mixing:
-            self.mixing_hyperparam *= self._staleness_function(client_staleness)
+            client_staleness = update.staleness
 
-        return self.algorithm.aggregate_weights(
-            baseline_weights, weights_received, mixing=self.mixing_hyperparam
-        )
+            mixing_hyperparam = self.mixing_hyperparam
+            if self.adaptive_mixing:
+                mixing_hyperparam *= self._staleness_function(client_staleness)
+
+            print(f"Round({self.current_round}): aggregating client {update.client_id} with staleness {update.staleness} resulting staleness function returning {mixing_hyperparam}")
+            if updated_model is None:
+                updated_model = self.algorithm.aggregate_weights(
+                    baseline_weights, weights_received[index], mixing=mixing_hyperparam
+                )
+            else:
+                updated_model = self.algorithm.aggregate_weights(
+                    updated_model, weights_received[index], mixing=mixing_hyperparam
+                )
+
+        return updated_model
 
     @staticmethod
     def _staleness_function(staleness) -> float:

@@ -282,6 +282,15 @@ class Server(base.Server):
                 f"val/central_f1": f1,
                 f"val/central_aupr": aupr
                 }, step=self.current_round)
+
+                if (Config().data.datasource == "Embryos"):
+                    if auroc > self.best_model_metric:
+                        self.best_model_round = self.current_round
+                        self.best_model_metric = auroc
+                else:
+                    if accuracy > self.best_model_metric:
+                        self.best_model_round = self.current_round
+                        self.best_model_metric = accuracy
             else:    
                 logging.info(
                     "[%s] Global model accuracy: %.2f%%\n", self, 100 * self.accuracy

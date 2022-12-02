@@ -14,7 +14,7 @@ class Algorithm(fedavg.Algorithm):
         updated_weights = OrderedDict()
         for name, weight in baseline_weights.items():
             updated_weights[name] = (
-                weight * (1 - mixing) + weights_received[0][name] * mixing
+                weight * (1 - mixing) + weights_received[name] * mixing
             )
 
         return updated_weights

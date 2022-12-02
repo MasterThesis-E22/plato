@@ -7,6 +7,7 @@ import logging
 import multiprocessing as mp
 import os
 import pickle
+import random
 import re
 import time
 from types import SimpleNamespace
@@ -130,7 +131,9 @@ class Trainer(base.Trainer):
             hasattr(Config().clients, "sleep_simulation")
             and Config().clients.sleep_simulation
         ):
-            sleep_seconds = Config().client_sleep_times[self.client_id - 1]
+            dist = Config.clients.additional_delay
+            additional_sleep = random.randint(dist.low, dist.high)
+            sleep_seconds = Config().client_sleep_times[self.client_id - 1] + additional_sleep
 
             # Put this client to sleep
             logging.info(

@@ -1,23 +1,31 @@
 #!/bin/bash
 base_path=$(dirname "$0")            # relative
 base_path=$(cd "$MY_PATH" && pwd)    # absolutized and normalized
-if [[ -z "$base_path" ]] ; then  # error; for some reason, the path is not accessible
+if [[ -z "$base_path" ]] ; then
+  # error; for some reason, the path is not accessible
   # to the script (e.g. permissions re-evaled after suid)
   exit 1  # fail
 fi
 echo "$base_path"
 
-#experiments=("test3")
-#experiments=("test1" "test2" "test3")
-#experiments=("fedavg_r100_e1_lr1e5" "fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
-#experiments=("fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr1e3")
-experiments=("fedavg_r100_e1_lr1e5" "fedavg_r100_e1_lr5e5" "fedavg_r100_e1_lr1e4" "fedavg_r100_e1_lr5e4" "fedavg_r100_e1_lr1e3")
+declare -a experiments=(
+"low-delay_low-interval"
+"high-delay_low-interval"
+"low-delay_high-interval"
+"high-delay_high-interval"
+"low-hinge"
+"high-hinge"
+"low-poly"
+"high-poly"
+"multiple_epochs"
+            )
+
 echo "=============================================================================================="
-echo "Starting Learning rate experiments"
+echo "Starting Benchmark Async experiments"
 echo "=============================================================================================="
 for experiment in ${experiments[@]}; do
     echo "Starting experiment <$experiment>"
-    $base_path/../../venv/bin/python sync_base.py -c $experiment.yml
+    $base_path/../../venv/bin/python async_base.py -c cifar10/$experiment.yml
     echo "Experiment <$experiment> done"
     echo -e "\n\n\n\n\n"
     echo "=============================================================================================="
