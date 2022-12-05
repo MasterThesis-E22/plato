@@ -55,7 +55,7 @@ class DataSource(base.DataSource):
         self.trainset = None
         self.testset = None
         self.validationset = None
-        self._root = "/mnt/data/mlr_ahj_datasets/cifar10/lda/concentration_10"
+        self._root = "/mnt/data/mlr_ahj_datasets/cifar10/lda/concentration_100"
 
         _transform = transforms.Compose([
             transforms.ToTensor(),
