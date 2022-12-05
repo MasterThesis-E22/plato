@@ -216,7 +216,10 @@ class Server(base.Server):
 
             # Loads the new model weights
             self.algorithm.load_weights(updated_weights)
-
+        
+        # Update the current amount of aggregations
+        self.current_aggregation_count += len(self.updates)
+        
         # The model weights have already been aggregated, now calls the
         # corresponding hook and callback
         self.weights_aggregated(self.updates)

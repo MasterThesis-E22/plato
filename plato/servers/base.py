@@ -86,6 +86,7 @@ class Server:
         self.selected_client_id = 0
         self.selected_sids = []
         self.current_round = 0
+        self.current_aggregation_count = 0
         self.resumed_session = False
         self.algorithm = None
         self.trainer = None
@@ -1252,10 +1253,17 @@ class Server:
             self.do_final_model_test()
             await self.close()
 
-        if self.current_round >= Config().trainer.rounds:
-            logging.info("Target number of training rounds reached.")
-            self.do_final_model_test()
-            await self.close()
+        if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
+            logging.info("{} aggregations performed in {} rounds.".format(self.current_aggregation_count, self.current_round))
+            if self.current_aggregation_count >= Config().trainer.rounds * Config().clients.per_round:
+                logging.info("Target number of aggregations reached.")
+                self.do_final_model_test()
+                await self.close()
+        else:        
+            if self.current_round >= Config().trainer.rounds:
+                logging.info("Target number of training rounds reached.")
+                self.do_final_model_test()
+                await self.close()
 
     # pylint: disable=protected-access
     async def close(self):
@@ -1357,6 +1365,7 @@ class Server:
         auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr, staleness = self.metric_averaging(self.updates)
 
         self.wandb_logger.log({
+            f"aggregations": self.current_aggregation_count,
             f"round": self.current_round,
             f"train/avg_loss": train_loss,
 
@@ -1374,6 +1383,7 @@ class Server:
         auroc, accuracy, test_loss, \
         train_loss, precision, recall, f1, aupr = self.metric_weighted_averaging(self.updates)
         self.wandb_logger.log({
+            f"aggregations": self.current_aggregation_count,
             f"round": self.current_round,
             f"train/weighted_avg_loss": train_loss,
 
