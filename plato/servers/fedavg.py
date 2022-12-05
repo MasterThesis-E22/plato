@@ -276,6 +276,7 @@ class Server(base.Server):
                     "[%s] Global model accuracy: %.2f%%\n", self, 100*accuracy
                 )
                 self.wandb_logger.log({
+                f"aggregations": self.current_aggregation_count,
                 f"round": self.current_round,
                 f"val/central_auroc": auroc,
                 f"val/central_accuracy": accuracy,

@@ -47,7 +47,7 @@ server:
     adaptive_mixing: true
     staleness_weighting_function:
         type: polynomial
-            a: 10
+        a: 10
 
     checkpoint_path: models/fedasync/cifar10
     model_path: models/fedasync/cifar10

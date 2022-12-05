@@ -13,11 +13,11 @@ declare -a experiments=(
 "high-delay_low-interval"
 "low-delay_high-interval"
 "high-delay_high-interval"
-"low-hinge"
-"high-hinge"
-"low-poly"
-"high-poly"
-"multiple_epochs"
+#"low-hinge"
+#"high-hinge"
+#"low-poly"
+#"high-poly"
+#"multiple_epochs"
             )
 
 echo "=============================================================================================="

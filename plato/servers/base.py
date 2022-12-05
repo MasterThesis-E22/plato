@@ -1378,21 +1378,6 @@ class Server:
             f"val/avg_aupr": aupr,
             f"avg_staleness": staleness,
             }, step=self.current_round)
-        
-        # per aggregation logging
-        self.wandb_logger.log({
-            f"pr_agg/round": self.current_round,
-            f"pr_agg/train/avg_loss": train_loss,
-
-            f"pr_agg/val/avg_auroc": auroc,
-            f"pr_agg/val/avg_accuracy": accuracy,
-            f"pr_agg/val/avg_loss": test_loss,
-            f"pr_agg/val/avg_precision": precision,
-            f"pr_agg/val/avg_recall": recall,
-            f"pr_agg/val/avg_f1": f1,
-            f"pr_agg/val/avg_aupr": aupr,
-            f"pr_agg/avg_staleness": staleness,
-            }, step=self.current_aggregation_count)
 
         # Log weighted average of client metrics
         auroc, accuracy, test_loss, \
@@ -1410,20 +1395,6 @@ class Server:
             f"val/weighted_avg_f1": f1,
             f"val/weighted_avg_aupr": aupr,
         }, step=self.current_round)
-
-        # per aggregation logging
-        self.wandb_logger.log({
-            f"pr_agg/round": self.current_round,
-            f"pr_agg/train/weighted_avg_loss": train_loss,
-
-            f"pr_agg/val/weighted_avg_auroc": auroc,
-            f"pr_agg/val/weighted_avg_accuracy": accuracy,
-            f"pr_agg/val/weighted_avg_loss": test_loss,
-            f"pr_agg/val/weighted_avg_precision": precision,
-            f"pr_agg/val/weighted_avg_recall": recall,
-            f"pr_agg/val/weighted_avg_f1": f1,
-            f"pr_agg/val/weighted_avg_aupr": aupr,
-        }, step=self.current_aggregation_count)
 
 
 

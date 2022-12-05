@@ -47,8 +47,8 @@ server:
     adaptive_mixing: true
     staleness_weighting_function:
         type: hinge
-            a: 10
-            b: 3
+        a: 10
+        b: 3
 
     checkpoint_path: models/fedasync/cifar10
     model_path: models/fedasync/cifar10
