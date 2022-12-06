@@ -286,17 +286,6 @@ class Server(base.Server):
                 f"val/central_f1": f1,
                 f"val/central_aupr": aupr
                 }, step=self.current_round)
-                
-                self.wandb_logger.log({
-                f"pr_agg/round": self.current_round,
-                f"pr_agg/val/central_auroc": auroc,
-                f"pr_agg/val/central_accuracy": accuracy,
-                f"pr_agg/val/central_loss": validation_loss,
-                f"pr_agg/val/central_precision": precision,
-                f"pr_agg/val/central_recall": recall,
-                f"pr_agg/val/central_f1": f1,
-                f"pr_agg/val/central_aupr": aupr
-                }, step=self.current_aggregation_count)
 
                 if (Config().data.datasource == "Embryos"):
                     if auroc > self.best_model_metric:

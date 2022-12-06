@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import pickle
+import random
 import re
 import sys
 import uuid
@@ -178,19 +179,40 @@ class Client:
             self.load_data()
 
         if self.comm_simulation:
-            payload_filename = response["payload_filename"]
-            with open(payload_filename, "rb") as payload_file:
-                self.server_payload = pickle.load(payload_file)
+            load_checkpoint = False
+            self.staleness = 0
+            if hasattr(Config().server, "synchronous") and not Config().server.synchronous and hasattr(Config().clients, "random_staleness"):
+                staleness = random.randint(Config().clients.random_staleness.low, Config().clients.random_staleness.high)
+                if staleness > self.current_round - 1 or staleness == 0:
+                    self.staleness = 0
+                    payload_filename = response["payload_filename"]
+                else:
+                    self.staleness = staleness
+                    self.current_round = self.current_round - self.staleness
+                    checkpoint_path = Config().params["checkpoint_path"]
+                    model_name = Config().trainer.model_name
+                    filename = f"checkpoint_{model_name}_{self.current_round}.pth"
+                    payload_filename = f"{checkpoint_path}/{filename}"
 
-            payload_size = sys.getsizeof(pickle.dumps(self.server_payload))
+                    load_checkpoint = True
+            else:
+                payload_filename = response["payload_filename"]
 
-            logging.info(
-                "[%s] Received %.2f MB of payload data from the server (simulated).",
-                self,
-                payload_size / 1024**2,
-            )
+            if not load_checkpoint:
+                with open(payload_filename, "rb") as payload_file:
+                    self.server_payload = pickle.load(payload_file)
 
-            self.server_payload = self.inbound_processor.process(self.server_payload)
+                payload_size = sys.getsizeof(pickle.dumps(self.server_payload))
+
+                logging.info(
+                    "[%s] Received %.2f MB of payload data from the server (simulated).",
+                    self,
+                    payload_size / 1024**2,
+                )
+                self.server_payload = self.inbound_processor.process(self.server_payload)
+            else:
+                import torch
+                self.server_payload = torch.load(payload_filename)
 
             await self.start_training()
 

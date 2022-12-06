@@ -65,13 +65,16 @@ class Server(fedavg.Server):
         print(f"aggregate_weights with {len(updates)} updates")
         for index, update in enumerate(updates):
 
-            client_staleness = update.staleness
+            if hasattr(Config().clients, "random_staleness"):
+                client_staleness = update.report.staleness
+            else:
+                client_staleness = update.staleness
 
             mixing_hyperparam = self.mixing_hyperparam
             if self.adaptive_mixing:
                 mixing_hyperparam *= self._staleness_function(client_staleness)
 
-            print(f"Round({self.current_round}): aggregating client {update.client_id} with staleness {update.staleness} resulting staleness function returning {mixing_hyperparam}")
+            print(f"Round({self.current_round}): aggregating client {update.client_id} with staleness {client_staleness} resulting staleness function returning {mixing_hyperparam}")
             if updated_model is None:
                 updated_model = self.algorithm.aggregate_weights(
                     baseline_weights, weights_received[index], mixing=mixing_hyperparam

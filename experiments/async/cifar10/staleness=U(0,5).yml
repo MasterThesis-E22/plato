@@ -27,7 +27,11 @@ clients:
 
     additional_delay:
         low: 0
-        high: 10
+        high: 0
+
+    random_staleness:
+        low: 0
+        high: 5
 
     random_seed: 42
 
@@ -40,7 +44,7 @@ server:
     do_final_test: true
 
     # Parameter for FedAsync
-    periodic_interval: 10
+    periodic_interval: 30
     staleness_bound: 99999
     minimum_clients_aggregated: 1
     mixing_hyperparameter: 0.9
@@ -92,7 +96,7 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "cifar10_low-delay_low-interval"
+    experiment_name: "staleness=U(0,5)"
     optimizer:
         lr: 0.001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2

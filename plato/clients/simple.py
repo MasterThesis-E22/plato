@@ -195,7 +195,8 @@ class Client(base.Client):
             precision=precision,
             recall=recall,
             f1=f1,
-            aupr=aupr
+            aupr=aupr,
+            staleness=self.staleness
             )
 
         self._report = self.customize_report(report)
