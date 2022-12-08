@@ -1352,7 +1352,11 @@ class Server:
             recall += update.report.recall / total_clients
             f1 += update.report.f1 / total_clients
             aupr += update.report.aupr / total_clients
-            staleness += update.report.staleness / total_clients
+            if hasattr(Config().clients, "random_staleness"):
+                staleness += update.report.staleness / total_clients
+            else:
+                staleness += update.staleness / total_clients
+
 
         return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr, staleness
 
@@ -1404,10 +1408,15 @@ class Server:
 
         logging.info("[%s] Logging report from [Client-%d]", self, client_id)
         if hasattr(update, "staleness"):
-            self.wandb_logger.log({f"client#{client_id}/staleness": update.report.staleness, "round": self.current_round}, step=self.current_round)
+            if hasattr(Config().clients, "random_staleness"):
+                staleness = update.report.staleness
+            else:
+                staleness = update.staleness
+            self.wandb_logger.log({f"client#{client_id}/staleness": staleness, "round": self.current_round}, step=self.current_round)
 
         for attribute in list(report.__dict__):
             if attribute == "predictions": continue
+            elif attribute == "staleness": continue
             else:
                 self.wandb_logger.log({f"client#{client_id}/{attribute}": getattr(report, attribute), "round": self.current_round}, step=self.current_round)
             

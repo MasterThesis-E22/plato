@@ -9,33 +9,17 @@ fi
 echo "$base_path"
 
 declare -a experiments=(
-#"low-delay_low-interval"
-#"high-delay_low-interval"
-#"low-delay_high-interval"
-#"high-delay_high-interval"
-#"low-hinge"
-#"high-hinge"
-#"low-poly"
-#"high-poly"
-#"multiple_epochs"
-#"delay10-interval=8"
-#"delay12"
-#"delay14"
-#"delay16"
-#"staleness=U(0,15)"
-#"staleness=U(0,15)_function=hinge(1,4)"
-#"staleness=U(0,15)_function=hinge(10,4)"
-"staleness=U(0,15)_function=poly(1)"
-"staleness=U(0,15)_function=poly(10)"
-"staleness=U(0,5)"
+"clients=10_interval=40_func=const"
+"clients=15_interval=40_func=const"
+"clients=23_interval=40_func=const"
             )
 
 echo "=============================================================================================="
-echo "Starting Benchmark Async experiments"
+echo "Starting Embryos Async experiments"
 echo "=============================================================================================="
 for experiment in ${experiments[@]}; do
     echo "Starting experiment <$experiment>"
-    $base_path/../../venv/bin/python async_base.py -c cifar10/$experiment.yml
+    $base_path/../../venv/bin/python async_base.py -c embryos/$experiment.yml
     echo "Experiment <$experiment> done"
     echo -e "\n\n\n\n\n"
     echo "=============================================================================================="

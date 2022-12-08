@@ -3,10 +3,10 @@ clients:
     type: simple
 
     # The total number of clients
-    total_clients: 10
+    total_clients: 15
 
     # The number of clients selected in each round
-    per_round: 10
+    per_round: 15
 
     # Should the clients compute test accuracy locally?
     do_test: true
@@ -29,10 +29,6 @@ clients:
         low: 0
         high: 0
 
-    random_staleness:
-        low: 0
-        high: 15
-
     random_seed: 42
 
 server:
@@ -44,7 +40,7 @@ server:
     do_final_test: true
 
     # Parameter for FedAsync
-    periodic_interval: 99999
+    periodic_interval: 40
     staleness_bound: 99999
     minimum_clients_aggregated: 1
     mixing_hyperparameter: 0.9
@@ -52,8 +48,8 @@ server:
     staleness_weighting_function:
         type: constant
 
-    checkpoint_path: models/fedasync/cifar10
-    model_path: models/fedasync/cifar10
+    checkpoint_path: models/fedasync/embryos
+    model_path: models/fedasync/embryos
 
     downlink_bandwidth: 100
     uplink_bandwidth: 100
@@ -62,7 +58,8 @@ server:
 
 data:
     # The training and testing dataset
-    datasource: PartitionedCIFAR10
+    datasource: Embryos
+    size_sorted: true
 
     # IID or non-IID?
     sampler: all_inclusive
@@ -82,27 +79,27 @@ trainer:
     max_concurrency: 10
 
     # The machine learning model
-    model_name: lowgpuCifar10
+    model_name: lowgpuEmbryosNew
 
     # Number of epoches for local training in each communication round
     epochs: 1
-    batch_size: 64
+    batch_size: 16
     optimizer: RMSprop
 
-    loss_criterion: CrossEntropyLoss
+    loss_criterion: BCEWithLogitsLoss
 
 algorithm:
     # Aggregation algorithm
     type: fedavg
 
 parameters:
-    experiment_name: "staleness=U(0,15)"
+    experiment_name: "clients=15_interval=40_func=const"
     optimizer:
-        lr: 0.001
+        lr: 0.0001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2
         weight_decay: 0
 
 results:
-    result_path: results/fedasync/cifar10
+    result_path: results/fedasync/embryos
     # Write the following parameter(s) into a CSV
     types: round, elapsed_time, comm_time, round_time, comm_overhead, train_loss, test_loss, auroc, accuracy, precision, recall

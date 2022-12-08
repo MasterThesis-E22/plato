@@ -3,10 +3,10 @@ clients:
     type: simple
 
     # The total number of clients
-    total_clients: 10
+    total_clients: 23
 
     # The number of clients selected in each round
-    per_round: 10
+    per_round: 23
 
     # Should the clients compute test accuracy locally?
     do_test: true
@@ -93,7 +93,7 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "embryos"
+    experiment_name: "clients=23_interval=40_func=const"
     optimizer:
         lr: 0.0001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2

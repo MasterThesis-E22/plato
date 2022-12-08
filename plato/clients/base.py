@@ -13,6 +13,7 @@ import sys
 import uuid
 import wandb
 from abc import abstractmethod
+import numpy as np
 
 import socketio
 from plato.callbacks.handler import CallbackHandler
@@ -29,7 +30,6 @@ class ClientEvents(socketio.AsyncClientNamespace):
         super().__init__(namespace)
         self.plato_client = plato_client
         self.client_id = plato_client.client_id
-
     # pylint: disable=unused-argument
     async def on_connect(self):
         """Upon a new connection to the server."""
@@ -86,6 +86,7 @@ class Client:
         self.s3_client = None
         self.outbound_processor = None
         self.inbound_processor = None
+        self.staleness_array = None
 
         self.comm_simulation = (
             Config().clients.comm_simulation
@@ -182,7 +183,14 @@ class Client:
             load_checkpoint = False
             self.staleness = 0
             if hasattr(Config().server, "synchronous") and not Config().server.synchronous and hasattr(Config().clients, "random_staleness"):
-                staleness = random.randint(Config().clients.random_staleness.low, Config().clients.random_staleness.high)
+                if self.staleness_array is None:
+                    np.random.seed(self.client_id)
+                    self.staleness_array = np.random.randint(Config().clients.random_staleness.low,
+                                                             Config().clients.random_staleness.high,
+                                                             Config().trainer.rounds)
+                    print(f"client#{self.client_id} has staleness array = {self.staleness_array}")
+
+                staleness = self.staleness_array[self.current_round-1]
                 if staleness > self.current_round - 1 or staleness == 0:
                     self.staleness = 0
                     payload_filename = response["payload_filename"]

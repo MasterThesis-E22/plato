@@ -117,7 +117,7 @@ class Server(fedavg.Server):
     @staticmethod
     def _polynomial_function(staleness, a) -> float:
         """Polynomial staleness function as proposed in Sec. 5.2, Evaluation Setup."""
-        return (staleness + 1) ** -a
+        return float(staleness + 1) ** -a
 
     @staticmethod
     def _hinge_function(staleness, a, b) -> float:
