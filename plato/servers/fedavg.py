@@ -225,8 +225,8 @@ class Server(base.Server):
         self.weights_aggregated(self.updates)
         self.callback_handler.call_event("on_weights_aggregated", self, self.updates)
 
-        # Testing the global model accuracy
-        if hasattr(Config().server, "do_test") and not Config().server.do_test:
+        #Testing the global model accuracy
+        if hasattr(Config().server, "do_test") and not Config().server.do_test: # If not doing central testing
             # Compute the average accuracy from client reports
             self.auroc, self.accuracy, self.test_loss, self.train_loss,\
             self.precision, self.recall, self.f1, self.aupr = self.metric_weighted_averaging(self.updates)
@@ -262,14 +262,7 @@ class Server(base.Server):
                 "[%s] Average client recall: %.2f", self, self.recall
             )
 
-        else:
-            # Testing the updated model directly at the server
-
-            self.accuracy = self.trainer.test(self.validationset, self.validationset_sampler)
-
-        if hasattr(Config().trainer, "target_perplexity"):
-            logging.info("[%s] Global model perplexity: %.2f\n", self, self.accuracy)
-        else:
+        else: # If doing central testing - Testing the updated model directly at the server
             if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
                 validation_loss, auroc, accuracy, precision, recall, _, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
                 logging.info(
@@ -295,12 +288,45 @@ class Server(base.Server):
                     if accuracy > self.best_model_metric:
                         self.best_model_round = self.current_round
                         self.best_model_metric = accuracy
-            else:    
-                logging.info(
-                    "[%s] Global model accuracy: %.2f%%\n", self, 100 * self.accuracy
-                )
+            else:
+                self.accuracy = self.trainer.test(self.validationset, self.validationset_sampler)
+
+        if hasattr(Config().trainer, "target_perplexity"):
+            logging.info("[%s] Global model perplexity: %.2f\n", self, self.accuracy)
+        else:
+            logging.info(
+                "[%s] Global model accuracy: %.2f%%\n", self, 100 * self.accuracy
+            )
 
         await self.wrap_up_processing_reports()
+        
+    def _do_async_test(self, current_round):
+        if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
+            validation_loss, auroc, accuracy, precision, recall, _, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
+            logging.info(
+                "[%s] Global model accuracy: %.2f%%\n", self, 100*accuracy
+            )
+            self.wandb_logger.log({
+            f"aggregations": self.current_aggregation_count,
+            f"round": current_round,
+            f"val/central_auroc": auroc,
+            f"val/central_accuracy": accuracy,
+            f"val/central_loss": validation_loss,
+            f"val/central_precision": precision,
+            f"val/central_recall": recall,
+            f"val/central_f1": f1,
+            f"val/central_aupr": aupr
+            }, step=current_round)
+
+            if (Config().data.datasource == "Embryos"):
+                if auroc > self.best_model_metric:
+                    self.best_model_round = current_round
+                    self.best_model_metric = auroc
+            else:
+                if accuracy > self.best_model_metric:
+                    self.best_model_round = current_round
+                    self.best_model_metric = accuracy
+            
 
     async def wrap_up_processing_reports(self):
         """Wrap up processing the reports with any additional work."""

@@ -28,11 +28,17 @@ class Server(fedavg.Server):
         # Whether adjust mixing hyperparameter after each round
         self.adaptive_mixing = False
 
+
     def configure(self):
         """Configure the mixing hyperparameter for the server, as well as
         other parameters from the configuration file.
         """
         super().configure()
+        
+        # Container to log the amount of aggregations performed per client
+        self.client_aggregations = {}
+        for i in range(Config().clients.total_clients):
+            self.client_aggregations[i+1] = 0
 
         # Configuring the mixing hyperparameter for FedAsync
         self.adaptive_mixing = (
@@ -64,7 +70,7 @@ class Server(fedavg.Server):
         updated_model = None
         print(f"aggregate_weights with {len(updates)} updates")
         for index, update in enumerate(updates):
-
+            
             if hasattr(Config().clients, "random_staleness"):
                 client_staleness = update.report.staleness
             else:
@@ -84,6 +90,8 @@ class Server(fedavg.Server):
                     updated_model, weights_received[index], mixing=mixing_hyperparam
                 )
 
+            self.client_aggregations[update.client_id] +=1
+            
         return updated_model
 
     @staticmethod

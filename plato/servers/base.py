@@ -13,6 +13,7 @@ import random
 import sys
 import time
 import wandb
+
 from abc import abstractmethod
 from types import SimpleNamespace
 
@@ -1291,6 +1292,10 @@ class Server:
     @abstractmethod
     async def _process_reports(self) -> None:
         """Process a client report."""
+    
+    @abstractmethod
+    async def _do_async_test(self) -> None:
+        """Process a client report."""
 
     def process_customized_report(self, client_id, checkpoint_path, model_name):
         """Process a customized client report with additional information."""
@@ -1486,3 +1491,7 @@ class Server:
                     y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32),
                     y_probas=numpy.asarray(plot_data["logits"], dtype=numpy.float32),
                     labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])})
+            
+            if not Config().server.synchronous:
+                for clientId in self.client_aggregations.keys():
+                    self.wandb_logger.log({"aggregations/client#{}".format(clientId): self.client_aggregations[clientId]})
