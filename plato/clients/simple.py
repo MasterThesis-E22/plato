@@ -108,6 +108,9 @@ class Client(base.Client):
                 self.validationset_sampler = samplers_registry.get(
                     self.datasource, self.client_id, DataType.Validation
                 )
+        # calculate client positive rate     
+        self.positive_rate = (len(self.datasource.trainset.data[self.datasource.trainset.data.Label==1])/len(self.datasource.trainset.data))
+        logging.info("[%s] Training set positive rate: %s", self, self.positive_rate)
 
     def load_payload(self, server_payload) -> None:
         """Loads the server model onto this client."""
@@ -196,7 +199,8 @@ class Client(base.Client):
             recall=recall,
             f1=f1,
             aupr=aupr,
-            staleness=self.staleness
+            staleness=self.staleness,
+            positive_rate=self.positive_rate
             )
 
         self._report = self.customize_report(report)

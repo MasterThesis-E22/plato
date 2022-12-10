@@ -76,7 +76,6 @@ class DataSource(base.DataSource):
         self.testset = None
         self.validationset = None
         self._root = "/mnt/data/mlr_ahj_datasets/vitrolife/dataset/"
-        
 
         #Loading in the meta data file
         metadata_file_path = os.path.join(self._root, "metadata.csv")
@@ -117,6 +116,7 @@ class DataSource(base.DataSource):
             sizes.append(len(train_val_data.loc[train_val_data['LabID'] == id]))
         assert(len(sizes) == 23)
         sortedIds = [x for _,x in sorted(zip(sizes,ids), reverse=True)]
+        self.sortedIds = sortedIds
         return sortedIds
         
 
@@ -152,5 +152,3 @@ class DataSource(base.DataSource):
             clinic_ids = torch.LongTensor(clinic_ids)        
         
         return data, labels, clinic_ids
-
-    
