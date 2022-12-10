@@ -9,6 +9,9 @@ fi
 echo "$base_path"
 
 declare -a experiments=(
+#"proposal_1"
+#"proposal_2"
+#"proposal_3"
 "clients=10_interval=40_func=const"
 "clients=10_interval=50_func=const"
 "clients=10_interval=60_func=const"
