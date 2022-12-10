@@ -219,6 +219,7 @@ class Server(base.Server):
         
         # Update the current amount of aggregations
         self.current_aggregation_count += len(self.updates)
+        self.current_aggregation_count_array.append(self.current_aggregation_count)
         
         # The model weights have already been aggregated, now calls the
         # corresponding hook and callback
@@ -263,6 +264,7 @@ class Server(base.Server):
             )
 
         else: # If doing central testing - Testing the updated model directly at the server
+
             if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
                 validation_loss, auroc, accuracy, precision, recall, _, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
                 logging.info(

@@ -34,9 +34,7 @@ class Server(fedavg.Server):
         other parameters from the configuration file.
         """
         super().configure()
-        
-        # Container to log the amount of aggregations performed per client
-        self.client_aggregations = {}
+
         for i in range(Config().clients.total_clients):
             self.client_aggregations[i+1] = 0
 

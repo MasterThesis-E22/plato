@@ -37,6 +37,7 @@ server:
     synchronous: false
     simulate_wall_time: false
     do_test: false
+    do_final_validation: true
     do_final_test: true
 
     # Parameter for FedAsync
@@ -93,7 +94,7 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "clients=10_interval=40_func=const"
+    experiment_name: "clients=10_interval=60_func=const"
     optimizer:
         lr: 0.0001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2

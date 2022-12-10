@@ -31,7 +31,10 @@ class WANDBLogger:
         )
         self._initiated = True
         
-        
+    def define_metric(self, metric, step_metric) -> None:
+        wandb.define_metric(step_metric)
+        wandb.define_metric(metric, step_metric=step_metric)
+
     def finish(self) -> None:
         wandb.finish()
         self._initiated = False

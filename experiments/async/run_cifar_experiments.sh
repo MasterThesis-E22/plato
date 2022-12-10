@@ -12,7 +12,7 @@ declare -a experiments=(
 #"low-delay_low-interval"
 #"high-delay_low-interval"
 #"low-delay_high-interval"
-#"high-delay_high-interval"
+"high-delay_high-interval"
 #"low-hinge"
 #"high-hinge"
 #"low-poly"
@@ -25,9 +25,9 @@ declare -a experiments=(
 #"staleness=U(0,15)"
 #"staleness=U(0,15)_function=hinge(1,4)"
 #"staleness=U(0,15)_function=hinge(10,4)"
-"staleness=U(0,15)_function=poly(1)"
-"staleness=U(0,15)_function=poly(10)"
-"staleness=U(0,5)"
+#"staleness=U(0,15)_function=poly(1)"
+#"staleness=U(0,15)_function=poly(10)"
+#"staleness=U(0,5)"
             )
 
 echo "=============================================================================================="

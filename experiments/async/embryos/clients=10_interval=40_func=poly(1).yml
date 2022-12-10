@@ -47,7 +47,8 @@ server:
     mixing_hyperparameter: 0.9
     adaptive_mixing: true
     staleness_weighting_function:
-        type: constant
+        type: polynomial
+        a: 1
 
     checkpoint_path: models/fedasync/embryos
     model_path: models/fedasync/embryos
@@ -94,7 +95,7 @@ algorithm:
     type: fedavg
 
 parameters:
-    experiment_name: "clients=10_interval=40_func=const"
+    experiment_name: "clients=10_interval=40_func=poly(1)"
     optimizer:
         lr: 0.0001
         momentum: 0.0 # learning rate is fixed as in Appendix C.2

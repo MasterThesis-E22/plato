@@ -88,6 +88,7 @@ class Server:
         self.selected_sids = []
         self.current_round = 0
         self.current_aggregation_count = 0
+        self.current_aggregation_count_array = []
         self.resumed_session = False
         self.algorithm = None
         self.trainer = None
@@ -108,6 +109,8 @@ class Server:
         self.wandb_logger = wandb_logger.WANDBLogger(None)
         self.best_model_round = 0
         self.best_model_metric = 0
+        # Container to log the amount of aggregations performed per client
+        self.client_aggregations = {}
 
         # Starting from the default server callback class, add all supplied server callbacks
         self.callbacks = [PrintProgressCallback]
@@ -1246,11 +1249,15 @@ class Server:
 
         if target_accuracy and self.accuracy >= target_accuracy:
             logging.info("[%s] Target accuracy reached.", self)
+            await self.close_connections()
+            self.do_final_model_validation()
             self.do_final_model_test()
             await self.close()
 
         if target_perplexity and self.accuracy <= target_perplexity:
             logging.info("[%s] Target perplexity reached.", self)
+            await self.close_connections()
+            self.do_final_model_validation()
             self.do_final_model_test()
             await self.close()
 
@@ -1258,11 +1265,15 @@ class Server:
             logging.info("{} aggregations performed in {} rounds.".format(self.current_aggregation_count, self.current_round))
             if self.current_aggregation_count >= Config().trainer.rounds * Config().clients.per_round:
                 logging.info("Target number of aggregations reached.")
+                await self.close_connections()
+                self.do_final_model_validation()
                 self.do_final_model_test()
                 await self.close()
         else:        
             if self.current_round >= Config().trainer.rounds:
                 logging.info("Target number of training rounds reached.")
+                await self.close_connections()
+                self.do_final_model_validation()
                 self.do_final_model_test()
                 await self.close()
 
@@ -1277,8 +1288,8 @@ class Server:
 
         self.wandb_logger.finish()
         #wandb.finish()
-        
-        await self.close_connections()
+        #await self.close_connections()
+
         os._exit(0)
 
     def customize_server_response(self, server_response: dict) -> dict:
@@ -1424,7 +1435,52 @@ class Server:
             elif attribute == "staleness": continue
             else:
                 self.wandb_logger.log({f"client#{client_id}/{attribute}": getattr(report, attribute), "round": self.current_round}, step=self.current_round)
-            
+
+    def do_final_model_validation(self):
+
+        logging.info(f"[{self}] performing and logging final validation of all checkpoints from round 1 to {self.current_round}")
+        if not (hasattr(Config().server, "do_final_validation") and Config().server.do_final_validation):
+            return
+
+        self.wandb_logger.define_metric("val_central/*", "val_central/round")
+
+        # For each round performed we perform validation, log it to wandb and update the best_model_round and best_model_metric
+        for step in range(1, self.current_round + 1):
+            # load model at the steps checkpoint
+            checkpoint_path = Config().params["checkpoint_path"]
+            model_name = Config().trainer.model_name
+            best_model_name = f"checkpoint_{model_name}_{step}.pth"
+            self.trainer.load_model(best_model_name, checkpoint_path)
+
+            # perform validation on the validationset
+            loss, auroc, accuracy, precision, recall, plot_data, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
+
+            # log the results to wandb
+            self.wandb_logger.log({
+                f"round": step,
+                f"aggregations": self.current_aggregation_count_array[step - 1],
+                f"val_central/aggregations": self.current_aggregation_count_array[step - 1],
+                f"val_central/round": step,
+                f"val/central_auroc": auroc,
+                f"val/central_accuracy": accuracy,
+                f"val/central_loss": loss,
+                f"val/central_precision": precision,
+                f"val/central_recall": recall,
+                f"val/central_f1": f1,
+                f"val/central_aupr": aupr
+            })
+
+            # update best round
+            if (Config().data.datasource == "Embryos"):
+                if auroc > self.best_model_metric:
+                    self.best_model_round = step
+                    self.best_model_metric = auroc
+            else:
+                if accuracy > self.best_model_metric:
+                    self.best_model_round = step
+                    self.best_model_metric = accuracy
+
+
     def do_final_model_test(self):
         '''
         1. perform test call to trainer and have the appropriate data returned for logging

@@ -39,6 +39,8 @@ data:
     # IID or non-IID?
     sampler: all_inclusive
     testset_sampler: all_inclusive
+    size_sorted: true
+    reload_data: true
 
     # The concentration parameter for the Dirichlet distribution
     #concentration: 5
