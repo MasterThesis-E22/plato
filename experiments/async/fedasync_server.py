@@ -10,7 +10,6 @@ https://opt-ml.org/papers/2020/paper_28.pdf
 """
 import logging
 from collections import OrderedDict
-import numpy as np
 
 from plato.config import Config
 from plato.servers import fedavg
@@ -62,31 +61,6 @@ class Server(fedavg.Server):
                     "FedAsync: Invalid mixing hyperparameter. "
                     "The hyperparameter needs to be between 0 and 1 (exclusive)."
                 )
-                
-        # Calculating size function divisor dependant on size function
-        self.size_divisor = 1
-        if hasattr(Config().server, "size_weighting_function"):
-            size_func_param = Config().server.size_weighting_function
-            func_type = size_func_param.type.lower()
-            trainsetDF = self.datasource.trainset.data
-            if func_type == "total":
-                sum = 0
-                for id in self.datasource.sortedIds[:Config().clients.total_clients]:
-                    sum += len(trainsetDF[trainsetDF.LabID==id])
-                self.size_divisor = sum
-            elif func_type == "largest":
-                self.size_divisor = len(trainsetDF[trainsetDF.LabID==self.datasource.sortedIds[0]])
-            elif func_type == "positives":
-                ratios = []
-                for id in self.datasource.sortedIds[:Config().clients.total_clients]:
-                    ratios.append(len(trainsetDF[(trainsetDF.LabID==id) & (trainsetDF.Label==1)])/len(trainsetDF[trainsetDF.LabID==id]))
-                self.size_divisor = np.max(ratios)
-            else:
-                logging.warning(
-                    "FedAsync: Unknown size weighting function type. "
-                    "Type needs to be total, largest, or positives."
-                )
-                
 
     def aggregate_weights(self, updates, baseline_weights, weights_received):
         """Process the client reports by aggregating their weights."""
@@ -99,12 +73,9 @@ class Server(fedavg.Server):
                 client_staleness = update.report.staleness
             else:
                 client_staleness = update.staleness
-                client_size = update.report.num_samples
-                client_positive_ratio = update.report.positive_rate
 
             mixing_hyperparam = self.mixing_hyperparam
             if self.adaptive_mixing:
-                mixing_hyperparam *= self._size_function(client_size, client_positive_ratio, self.size_divisor)
                 mixing_hyperparam *= self._staleness_function(client_staleness)
 
             print(f"Round({self.current_round}): aggregating client {update.client_id} with staleness {client_staleness} resulting staleness function returning {mixing_hyperparam}")
@@ -142,7 +113,7 @@ class Server(fedavg.Server):
                     "Type needs to be constant, polynomial, or hinge."
                 )
         else:
-            return Server.constant_function()
+            return Server._constant_function()
 
     @staticmethod
     def _constant_function() -> float:
@@ -161,44 +132,3 @@ class Server(fedavg.Server):
             return 1
         else:
             return 1 / (a * (staleness - b) + 1)
-
-    # Functionality for adjusting the mixing parameter alpha according to the amount and relevance of samples in the client aggregated.
-    @staticmethod
-    def _size_function(size, ratio, divisor) -> float:
-        """Size function used to adjust the mixing hyperparameter"""
-        if hasattr(Config().server, "size_weighting_function"):
-            size_func_param = Config().server.size_weighting_function
-            func_type = size_func_param.type.lower()
-            if func_type == "total":
-                return Server._constant_function(size, divisor)
-            elif func_type == "largest":
-                return Server._total_function(size, divisor)
-            elif func_type == "positives":
-                return Server._positives_function(ratio, divisor)
-            else:
-                logging.warning(
-                    "FedAsync: Unknown size weighting function type. "
-                    "Type needs to be total, largest, or positives."
-                )
-        else:
-            return Server._none_function()
-
-    @staticmethod
-    def _none_function() -> float:
-        """None - size weight is just constant if nothing else is set"""
-        return 1
-    
-    @staticmethod
-    def _total_function(client_size, divisor) -> float:
-        """Proposal 1: Weighted according to total samples in run"""
-        return client_size/divisor
-
-    @staticmethod
-    def _largest_function(client_size, divisor) -> float:
-        """Proposal 2: Weighted according to largest client in run"""
-        return client_size/divisor
-
-    @staticmethod
-    def _positives_function(client_rate, divisor) -> float:
-        """Proposal 3: Weighted according to rate of positive samples"""
-        return client_rate/divisor

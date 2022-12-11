@@ -109,8 +109,11 @@ class Client(base.Client):
                     self.datasource, self.client_id, DataType.Validation
                 )
         # calculate client positive rate     
-        self.positive_rate = (len(self.datasource.trainset.data[self.datasource.trainset.data.Label==1])/len(self.datasource.trainset.data))
-        logging.info("[%s] Training set positive rate: %s", self, self.positive_rate)
+        if (Config().data.datasource == "Embryos"):
+            self.positive_rate = (len(self.datasource.trainset.data[self.datasource.trainset.data.Label==1])/len(self.datasource.trainset.data))
+            logging.info("[%s] Training set positive rate: %s", self, self.positive_rate)
+        else:
+            self.positive_rate = 0
 
     def load_payload(self, server_payload) -> None:
         """Loads the server model onto this client."""
