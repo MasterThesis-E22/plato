@@ -170,9 +170,9 @@ class Server(fedavg.Server):
             size_func_param = Config().server.size_weighting_function
             func_type = size_func_param.type.lower()
             if func_type == "total":
-                return Server._constant_function(size, divisor)
-            elif func_type == "largest":
                 return Server._total_function(size, divisor)
+            elif func_type == "largest":
+                return Server._largest_function(size, divisor)
             elif func_type == "positives":
                 return Server._positives_function(ratio, divisor)
             else:
