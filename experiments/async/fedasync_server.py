@@ -94,7 +94,8 @@ class Server(fedavg.Server):
         updated_model = None
         print(f"aggregate_weights with {len(updates)} updates")
         for index, update in enumerate(updates):
-
+            client_size = 0
+            client_positive_ratio = 0
             if hasattr(Config().clients, "random_staleness"):
                 client_staleness = update.report.staleness
             else:
