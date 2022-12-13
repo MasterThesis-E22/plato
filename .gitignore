@@ -171,3 +171,6 @@ experiments/async/output
 wandb/latest-run
 experiments/async/nohup-s5.out
 experiments/async/nohup-s10.out
+*.out
+experiments/async/proposal-output.out
+experiments/async/nohup-embryo-const.out
