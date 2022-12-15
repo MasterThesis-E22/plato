@@ -21,6 +21,7 @@ class DataSource:
     """
     def __init__(self):
         self.trainset = None
+        self.validationset = None
         self.testset = None
 
     @staticmethod
@@ -94,6 +95,13 @@ class DataSource:
         """ Obtains the number of training examples. """
         return len(self.trainset)
 
+    def num_validation_examples(self) -> int:
+        """ Obtains the number of validation examples. """
+        if self.validationset == None and not self.testset == None:
+            return len(self.testset)
+        else:
+            return len(self.validationset)
+
     def num_test_examples(self) -> int:
         """ Obtains the number of testing examples. """
         return len(self.testset)
@@ -110,7 +118,14 @@ class DataSource:
     def get_train_set(self):
         """ Obtains the training dataset. """
         return self.trainset
+    
+    def get_validation_set(self):
+        """ Obtains the validation dataset. """
+        if self.validationset == None and not self.testset == None:
+            return self.testset
+        else:
+            return self.validationset
 
     def get_test_set(self):
-        """ Obtains the validation dataset. """
+        """ Obtains the test dataset. """
         return self.testset

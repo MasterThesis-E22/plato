@@ -4,7 +4,8 @@ Base class for trainers.
 
 from abc import ABC, abstractmethod
 import os
-
+from types import SimpleNamespace
+import json
 from plato.config import Config
 
 
@@ -29,6 +30,23 @@ class Trainer(ABC):
         """Loading pre-trained model weights from a file."""
         raise TypeError("load_model() not implemented.")
 
+    @staticmethod
+    def save_auroc(auroc, filename=None):
+        """Saving the test auroc to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            auroc_path = f"{model_path}/{filename}"
+        else:
+            auroc_path = f"{model_path}/{model_name}.auroc"
+
+        with open(auroc_path, "w", encoding="utf-8") as file:
+            file.write(str(auroc))
+    
     @staticmethod
     def save_accuracy(accuracy, filename=None):
         """Saving the test accuracy to a file."""
@@ -82,7 +100,58 @@ class Trainer(ABC):
 
     @staticmethod
     def save_recall(recall, filename=None):
-        """Saving the test accuracy to a file."""
+        """Saving the test recall to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            recall_path = f"{model_path}/{filename}"
+        else:
+            recall_path = f"{model_path}/{model_name}.recall"
+
+        with open(recall_path, "w", encoding="utf-8") as file:
+            file.write(str(recall))
+
+    @staticmethod
+    def save_f1(f1, filename=None):
+        """Saving the test f1 to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            recall_path = f"{model_path}/{filename}"
+        else:
+            recall_path = f"{model_path}/{model_name}.f1"
+
+        with open(recall_path, "w", encoding="utf-8") as file:
+            file.write(str(f1))
+
+    @staticmethod
+    def save_aupr(f1, filename=None):
+        """Saving the test aupr to a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        if filename is not None:
+            recall_path = f"{model_path}/{filename}"
+        else:
+            recall_path = f"{model_path}/{model_name}.aupr"
+
+        with open(recall_path, "w", encoding="utf-8") as file:
+            file.write(str(f1))
+            
+    @staticmethod
+    def save_predictions(predictions, filename=None):
+        """Saving the test predictions to a file."""
         model_path = Config().params["model_path"]
         model_name = Config().trainer.model_name
 
@@ -92,10 +161,26 @@ class Trainer(ABC):
         if filename is not None:
             accuracy_path = f"{model_path}/{filename}"
         else:
-            accuracy_path = f"{model_path}/{model_name}.recall"
+            accuracy_path = f"{model_path}/{model_name}.predictions"
 
         with open(accuracy_path, "w", encoding="utf-8") as file:
-            file.write(str(recall))
+            file.write(str(json.dumps(predictions)))
+            
+    @staticmethod
+    def load_auroc(filename=None):
+        """Loading the test auroc from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            auroc = f"{model_path}/{filename}"
+        else:
+            auroc = f"{model_path}/{model_name}.auroc"
+
+        with open(auroc, "r", encoding="utf-8") as file:
+            auroc = float(file.read())
+
+        return auroc        
 
     @staticmethod
     def load_accuracy(filename=None):
@@ -146,18 +231,63 @@ class Trainer(ABC):
 
     @staticmethod
     def load_recall(filename=None):
-        """Loading the loss from a file."""
+        """Loading the recall from a file."""
         model_path = Config().params["model_path"]
         model_name = Config().trainer.model_name
 
         if filename is not None:
-            accuracy_path = f"{model_path}/{filename}"
+            recall_path = f"{model_path}/{filename}"
         else:
-            accuracy_path = f"{model_path}/{model_name}.recall"
+            recall_path = f"{model_path}/{model_name}.recall"
 
-        with open(accuracy_path, "r", encoding="utf-8") as file:
+        with open(recall_path, "r", encoding="utf-8") as file:
             recall = float(file.read())
         return recall
+
+    @staticmethod
+    def load_f1(filename=None):
+        """Loading the f1 from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            f1_path = f"{model_path}/{filename}"
+        else:
+            f1_path = f"{model_path}/{model_name}.f1"
+
+        with open(f1_path, "r", encoding="utf-8") as file:
+            f1 = float(file.read())
+        return f1
+
+    @staticmethod
+    def load_aupr(filename=None):
+        """Loading the aupr from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            aupr_path = f"{model_path}/{filename}"
+        else:
+            aupr_path = f"{model_path}/{model_name}.aupr"
+
+        with open(aupr_path, "r", encoding="utf-8") as file:
+            aupr = float(file.read())
+        return aupr
+    
+    @staticmethod
+    def load_predictions(filename=None):
+        """Loading the predictions from a file."""
+        model_path = Config().params["model_path"]
+        model_name = Config().trainer.model_name
+
+        if filename is not None:
+            predictions_path = f"{model_path}/{filename}"
+        else:
+            predictions_path = f"{model_path}/{model_name}.predictions"
+
+        with open(predictions_path, "r", encoding="utf-8") as file:
+            predictions = json.loads(file.read())
+        return predictions
 
     def pause_training(self):
         """Remove files of running trainers."""

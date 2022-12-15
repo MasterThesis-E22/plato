@@ -7,16 +7,21 @@ import logging
 import multiprocessing as mp
 import os
 import pickle
+import random
 import re
 import time
+from types import SimpleNamespace
 
 import torch
-import torchmetrics
+from torchmetrics.classification import BinaryAUROC, BinaryAccuracy, BinaryPrecision, BinaryRecall, MulticlassAUROC, \
+    MulticlassAccuracy, MulticlassPrecision, MulticlassRecall, BinaryF1Score, BinaryAveragePrecision, MulticlassF1Score, \
+    MulticlassAveragePrecision
 from plato.callbacks.handler import CallbackHandler
 from plato.callbacks.trainer import PrintProgressCallback
 from plato.config import Config
 from plato.models import registry as models_registry
 from plato.trainers import base, loss_criterion, lr_schedulers, optimizers, tracking
+import numpy as numpy
 
 
 class Trainer(base.Trainer):
@@ -126,7 +131,9 @@ class Trainer(base.Trainer):
             hasattr(Config().clients, "sleep_simulation")
             and Config().clients.sleep_simulation
         ):
-            sleep_seconds = Config().client_sleep_times[self.client_id - 1]
+            dist = Config.clients.additional_delay
+            additional_sleep = random.randint(dist.low, dist.high)
+            sleep_seconds = Config().client_sleep_times[self.client_id - 1] + additional_sleep
 
             # Put this client to sleep
             logging.info(
@@ -201,7 +208,7 @@ class Trainer(base.Trainer):
                 outputs = self.model(examples)
 
 
-                if Config().trainer.loss_criterion == "BCEWithLogitsLoss":
+                if (hasattr(Config.trainer, "loss_criterion") and Config().trainer.loss_criterion == "BCEWithLogitsLoss"):
                     labels = labels.float()
                     outputs = outputs.squeeze(dim=1)
 
@@ -324,9 +331,9 @@ class Trainer(base.Trainer):
 
         try:
             if sampler is None:
-                loss, accuracy, precision, recall = self.test_model(config, testset, **kwargs)
+                loss, auroc, accuracy, precision, recall, predictions, f1, aupr = self.test_model(config, testset, **kwargs)
             else:
-                loss, accuracy, precision, recall = self.test_model(config, testset, sampler.get(), **kwargs)
+                loss, auroc, accuracy, precision, recall, predictions, f1, aupr = self.test_model(config, testset, sampler.get(), **kwargs)
 
         except Exception as testing_exception:
             logging.info("Testing on client #%d failed.", self.client_id)
@@ -336,6 +343,13 @@ class Trainer(base.Trainer):
 
         if "max_concurrency" in config:
             model_name = config["model_name"]
+            
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.auroc"
+            self.save_auroc(auroc, filename)
+            
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.predictions"
+            self.save_predictions(predictions, filename)
+            
             filename = f"{model_name}_{self.client_id}_{config['run_id']}.accuracy"
             self.save_accuracy(accuracy, filename)
 
@@ -347,8 +361,15 @@ class Trainer(base.Trainer):
 
             filename = f"{model_name}_{self.client_id}_{config['run_id']}.recall"
             self.save_recall(recall, filename)
+
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.f1"
+            self.save_f1(f1, filename)
+
+            filename = f"{model_name}_{self.client_id}_{config['run_id']}.aupr"
+            self.save_aupr(aupr, filename)
+            
         else:
-            return loss, accuracy, precision, recall
+            return loss, auroc, accuracy, precision, recall, predictions, f1, aupr
 
     def test(self, testset, sampler=None, **kwargs) -> (float, float):
         """Testing the model using the provided test dataset.
@@ -374,6 +395,17 @@ class Trainer(base.Trainer):
             accuracy = -1
             try:
                 model_name = Config().trainer.model_name
+                
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.auroc"
+                )
+                auroc = self.load_auroc(filename)
+                
+                filename = (
+                   f"{model_name}_{self.client_id}_{Config().params['run_id']}.predictions"
+                )
+                predictions = self.load_predictions(filename)
+                
                 filename = (
                     f"{model_name}_{self.client_id}_{Config().params['run_id']}.accuracy"
                 )
@@ -394,6 +426,16 @@ class Trainer(base.Trainer):
                 )
                 recall = self.load_recall(filename)
 
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.f1"
+                )
+                f1 = self.load_f1(filename)
+
+                filename = (
+                    f"{model_name}_{self.client_id}_{Config().params['run_id']}.aupr"
+                )
+                aupr = self.load_aupr(filename)
+
             except OSError as error:  # the model file is not found, training failed
                 raise ValueError(
                     f"Testing on client #{self.client_id} failed."
@@ -401,9 +443,9 @@ class Trainer(base.Trainer):
 
             self.pause_training()
         else:
-            loss, accuracy, precision, recall = self.test_process(config, testset, **kwargs)
+            loss, auroc, accuracy, precision, recall, predictions, f1, aupr = self.test_process(config, testset, **kwargs)
 
-        return loss, accuracy, precision, recall
+        return loss, auroc, accuracy, precision, recall, predictions, f1, aupr
 
     def obtain_model_update(self, wall_time):
         """
@@ -455,7 +497,7 @@ class Trainer(base.Trainer):
         :param sampler: the sampler for the trainloader to use.
         """
         return torch.utils.data.DataLoader(
-            dataset=trainset, shuffle=False, batch_size=batch_size, sampler=sampler
+            dataset=trainset, shuffle=False, batch_size=batch_size
         )
 
     # pylint: disable=unused-argument
@@ -471,7 +513,7 @@ class Trainer(base.Trainer):
         batch_size = config["batch_size"]
 
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=batch_size, shuffle=False, sampler=sampler
+            testset, batch_size=batch_size, shuffle=False
         )
 
         correct = 0
@@ -479,42 +521,109 @@ class Trainer(base.Trainer):
         loss_total = 0
 
         self.model.to(self.device)
-        acc = torchmetrics.classification.BinaryAccuracy().to(self.device)
-        prec = torchmetrics.classification.BinaryPrecision().to(self.device)
-        rec = torchmetrics.classification.BinaryRecall().to(self.device)
-
+        
+        if (hasattr(Config.trainer, "loss_criterion") and Config().trainer.loss_criterion == "BCEWithLogitsLoss"):
+            rocauc = BinaryAUROC().to(self.device)
+            acc = BinaryAccuracy().to(self.device)
+            prec = BinaryPrecision().to(self.device)
+            rec = BinaryRecall().to(self.device)
+            f1 = BinaryF1Score().to(self.device)
+            prauc = BinaryAveragePrecision().to(self.device)
+        else:
+            num_classes = Config().results.num_classes if hasattr(Config().results, "num_classes") else 10       
+            rocauc = MulticlassAUROC(average='macro', num_classes=num_classes).to(self.device)
+            acc = MulticlassAccuracy(average='macro', num_classes=num_classes).to(self.device)
+            prec = MulticlassPrecision(average='macro', num_classes=num_classes).to(self.device)
+            rec = MulticlassRecall(average='macro', num_classes=num_classes).to(self.device)
+            f1 = MulticlassF1Score(average='macro', num_classes=num_classes).to(self.device)
+            prauc = MulticlassAveragePrecision(average='macro', num_classes=num_classes).to(self.device)
+        
         with torch.no_grad():
+            test_outputs = []
+            test_labels = []
+            test_predicted = []
+            
             for examples, labels in test_loader:
                 examples, labels = examples.to(self.device), labels.to(self.device)
 
                 outputs = self.model(examples)
-
-
-
+                
                 # Loss
-                if Config().trainer.loss_criterion == "BCEWithLogitsLoss":
+                if (hasattr(Config.trainer, "loss_criterion") and Config().trainer.loss_criterion == "BCEWithLogitsLoss"):
                     outputs = outputs.squeeze(dim=1)
                     loss_total += loss_criterion.get()(outputs, labels.float()).item()
                     predicted = (outputs > 0).long()
-
-                    acc(predicted, labels)
-                    prec(predicted, labels)
-                    rec(predicted, labels)
-
                     correct += (predicted == labels).sum().item()
                     total += labels.size(0)
+                    
+                    rocauc(outputs, labels)
+                    acc(outputs, labels)
+                    prec(outputs, labels)
+                    rec(outputs, labels)
+                    f1(outputs, labels)
+                    prauc(outputs, labels)
                 else:
+                    loss_total += loss_criterion.get()(outputs, labels).item()
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
+                
+                    rocauc(outputs, labels)
+                    acc(outputs, labels)
+                    prec(outputs, labels)
+                    rec(outputs, labels)
+                    f1(outputs, labels)
+                    prauc(outputs, labels)
+                
+                test_outputs.extend(outputs)
+                test_labels.extend(labels)
+                test_predicted.extend(predicted.tolist())
 
-        loss = loss_total / len(test_loader)
+            print("test_outputs: {}".format(len(test_outputs)))
+            print("test_labels: {}".format(len(test_labels)))
+            print("test_predicted: {}".format(len(test_predicted)))
+            
+            if Config().data.datasource == "Embryos":
+                labels = torch.FloatTensor(test_labels)
+                logits = torch.FloatTensor(test_outputs)
+                labels = labels.cpu()
+                logits = logits.cpu()
+            
+                probability = torch.sigmoid(logits)
+                both_probabilities = numpy.vstack((1 - probability.numpy(), probability)).T
+                predictionsDictionary = {
+                    "labels": labels.tolist(),
+                    "predictions": test_predicted,
+                    "probabilities": both_probabilities.tolist(),   
+                }
+            else:
+                labels = torch.FloatTensor(test_labels)
+                logits = torch.cat([tensor.reshape(1, -1) for tensor in test_outputs], dim=0)
+                labels = labels.cpu()
+                logits = logits.cpu()
+                
+                predictionsDictionary = {
+                    "labels": labels.tolist(),
+                    "predictions": test_predicted,
+                    "logits": logits.tolist(),
+                }
+        
+        if len(test_loader) != 0:        
+            loss = loss_total / len(test_loader)
+        else:
+            loss = loss_total
+        
+        
         accuracy = acc.compute()
         precision = prec.compute()
         recall = rec.compute()
-
+        auroc = rocauc.compute()
+        f1_score = f1.compute()
+        aupr = prauc.compute()
+        
         #accuracy = correct / total
-        return loss, accuracy.item(), precision.item(), recall.item()
+        return loss, auroc.item(), accuracy.item(), precision.item(),\
+               recall.item(), predictionsDictionary, f1_score.item(), aupr.item()
 
     def get_optimizer(self, model):
         """Returns the optimizer."""

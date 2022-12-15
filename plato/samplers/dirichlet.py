@@ -7,13 +7,14 @@ from torch.utils.data import WeightedRandomSampler, SubsetRandomSampler
 from plato.config import Config
 
 from plato.samplers import base
+from plato.samplers.base import DataType
 
 
 class Sampler(base.Sampler):
     """Create a data sampler for each client to use a divided partition of the
     dataset, biased across labels according to the Dirichlet distribution."""
 
-    def __init__(self, datasource, client_id, testing):
+    def __init__(self, datasource, client_id, data_type: DataType = DataType.Train):
         super().__init__()
 
         # Different clients should have a different bias across the labels & partition size
@@ -26,13 +27,19 @@ class Sampler(base.Sampler):
             else 1.0
         )
 
-        if testing:
-            target_list = datasource.get_test_set().targets
+        if data_type == DataType.Train:
+            dataset = datasource.get_train_set().dataset
+            target_list = dataset.targets[datasource.trainset.indices]
+        elif data_type == DataType.Validation:
+            dataset = datasource.get_validation_set().dataset
+            target_list = dataset.targets[datasource.validationset.indices]
+        elif data_type == DataType.Test:
+            dataset = datasource.get_test_set()
+            target_list = dataset.targets
         else:
-            # The list of labels (targets) for all the examples
-            target_list = datasource.targets()
+            raise NotImplementedError("Unknown data type")
 
-        class_list = datasource.classes()
+        class_list = dataset.classes
 
         target_proportions = np.random.dirichlet(
             np.repeat(concentration, len(class_list))

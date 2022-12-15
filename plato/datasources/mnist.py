@@ -2,7 +2,7 @@
 The MNIST dataset from the torchvision package.
 """
 from torchvision import datasets, transforms
-
+import torch
 from plato.config import Config
 from plato.datasources import base
 
@@ -18,7 +18,7 @@ class DataSource(base.DataSource):
             transforms.ToTensor(),
             transforms.Normalize((0.1307, ), (0.3081, ))
         ])
-        self.trainset = datasets.MNIST(root=_path,
+        train_dataset = datasets.MNIST(root=_path,
                                        train=True,
                                        download=True,
                                        transform=_transform)
@@ -27,8 +27,10 @@ class DataSource(base.DataSource):
                                       download=True,
                                       transform=_transform)
 
-    def num_train_examples(self):
-        return 60000
+        train_len = int(len(train_dataset) * 0.8)
+        validation_len = int(len(train_dataset) - train_len)
 
-    def num_test_examples(self):
-        return 10000
+        self.trainset, self.validationset = torch.utils.data.random_split(train_dataset,
+                                                                               [train_len, validation_len],
+                                                                               generator=torch.Generator().manual_seed(
+                                                                                   42))

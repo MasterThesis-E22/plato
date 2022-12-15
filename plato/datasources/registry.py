@@ -41,7 +41,9 @@ else:
         feature,
         qoenflx,
         celeba,
-        embryos
+        embryos,
+        partitioned_mnist,
+        partitioned_cifar10
     )
 
     registered_datasources = {
@@ -64,7 +66,9 @@ else:
     registered_partitioned_datasources = \
         {
         "FEMNIST": femnist,
-        "Embryos": embryos
+        "Embryos": embryos,
+        "PartitionedMNIST": partitioned_mnist,
+        "PartitionedCIFAR10": partitioned_cifar10
         }
 
 

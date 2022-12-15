@@ -51,7 +51,7 @@ class Server(fedavg.Server):
 
         # Test the updated model
         if not hasattr(Config().server, "do_test") or Config().server.do_test:
-            self.accuracy = self.trainer.test(self.testset)
+            self.accuracy = self.trainer.test(self.validationset)
             logging.info(
                 "[%s] Global model accuracy: %.2f%%\n", self, 100 * self.accuracy
             )

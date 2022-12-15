@@ -2,6 +2,7 @@
 The base class for federated learning servers.
 """
 
+import numpy as numpy
 import asyncio
 import heapq
 import logging
@@ -11,9 +12,12 @@ import pickle
 import random
 import sys
 import time
+import wandb
+
 from abc import abstractmethod
 from types import SimpleNamespace
 
+from datetime import datetime
 import numpy as np
 import socketio
 from aiohttp import web
@@ -22,7 +26,7 @@ from plato.callbacks.handler import CallbackHandler
 from plato.callbacks.server import PrintProgressCallback
 from plato.client import run
 from plato.config import Config
-from plato.utils import s3, fonts
+from plato.utils import s3, fonts, wandb_logger
 
 
 class ServerEvents(socketio.AsyncNamespace):
@@ -83,12 +87,15 @@ class Server:
         self.selected_client_id = 0
         self.selected_sids = []
         self.current_round = 0
+        self.current_aggregation_count = 0
+        self.current_aggregation_count_array = []
         self.resumed_session = False
         self.algorithm = None
         self.trainer = None
         self.accuracy = 0
         self.reports = {}
         self.updates = []
+        self.aggregated_updates = []
         self.client_payload = {}
         self.client_chunks = {}
         self.s3_client = None
@@ -99,6 +106,11 @@ class Server:
             if hasattr(Config().clients, "comm_simulation")
             else True
         )
+        self.wandb_logger = wandb_logger.WANDBLogger(None)
+        self.best_model_round = 0
+        self.best_model_metric = 0
+        # Container to log the amount of aggregations performed per client
+        self.client_aggregations = {}
 
         # Starting from the default server callback class, add all supplied server callbacks
         self.callbacks = [PrintProgressCallback]
@@ -299,6 +311,14 @@ class Server:
             port,
         )
 
+        # Registering wandb logger
+        self.wandb_logger.start()
+        #wandb.init(project="Embryos", group=Config().params["experiment_name"], entity="master-thesis-22")
+        #wandb.run.name = f"Server"
+        #logging.info(
+        #    "[{}] initiated wandb logging for experiment <{}>".format(self, Config().params["experiment_name"])
+        #)
+
         self.sio = socketio.AsyncServer(
             ping_interval=self.ping_interval,
             max_http_buffer_size=2**31,
@@ -382,7 +402,7 @@ class Server:
 
         if mp.get_start_method(allow_none=True) != "spawn":
             mp.set_start_method("spawn", force=True)
-
+            
         for client_id in range(starting_id, total_processes + starting_id):
             if as_server:
                 port = int(Config().server.port) + client_id
@@ -455,9 +475,11 @@ class Server:
                 # If the server is simulating the wall clock time, some of the clients who
                 # reported may not have been aggregated; they should be excluded from the next
                 # round of client selection
+                aggregated_clients = [update.client_id for update in self.aggregated_updates]
                 reporting_client_ids = [
-                    client[2]["client_id"] for client in self.reported_clients
+                    client[2]["client_id"] for client in self.reported_clients if client[2]["client_id"] not in aggregated_clients
                 ]
+                
 
                 selectable_clients = [
                     client
@@ -466,6 +488,10 @@ class Server:
                     and client not in reporting_client_ids
                 ]
 
+                logging.info("!--[{}] Clients still training {}".format(self, training_client_ids))
+                logging.info("!--[{}] Clients not aggregated {}".format(self, reporting_client_ids))
+                logging.info("!--[{}] Clients allowed for selection {}".format(self, selectable_clients))
+                
                 if self.simulate_wall_time:
                     self.selected_clients = self.choose_clients(
                         selectable_clients, len(self.current_processed_clients)
@@ -481,6 +507,7 @@ class Server:
 
             self.current_reported_clients = {}
             self.current_processed_clients = {}
+            self.aggregated_updates = []
 
             # There is no need to clear the list of reporting clients if we are
             # simulating the wall clock time on the server. This is because
@@ -634,6 +661,7 @@ class Server:
 
     def choose_clients(self, clients_pool, clients_count):
         """Choose a subset of the clients to participate in each round."""
+        logging.info("!--[%s] Clients count of %d must be smaller or equal to clients pool of %d", self, clients_count, len(clients_pool))
         assert clients_count <= len(clients_pool)
         random.setstate(self.prng_state)
 
@@ -688,6 +716,7 @@ class Server:
                     self,
                     len(self.updates),
                 )
+                self.log_updates_to_wandb()
                 await self._process_reports()
                 await self.wrap_up()
                 await self.select_clients()
@@ -849,7 +878,7 @@ class Server:
                 self.reports[sid].comm_time = 0
         else:
             self.reports[sid].comm_time = time.time() - self.reports[sid].comm_time
-
+        
         start_time = self.training_clients[client_id]["start_time"]
         finish_time = (
             self.reports[sid].training_time + self.reports[sid].comm_time + start_time
@@ -1031,7 +1060,7 @@ class Server:
                 os.getpid(),
                 len(self.updates),
             )
-
+            self.log_updates_to_wandb()
             await self._process_reports()
             await self.wrap_up()
             await self.select_clients()
@@ -1043,7 +1072,7 @@ class Server:
             # the same applies when we are running in synchronous mode.
             client = client_info[2]
             client_staleness = self.current_round - client["starting_round"]
-
+            
             self.updates.append(
                 SimpleNamespace(
                     client_id=client["client_id"],
@@ -1079,6 +1108,7 @@ class Server:
                 self,
                 len(self.updates),
             )
+            self.log_updates_to_wandb()
             await self._process_reports()
             await self.wrap_up()
             await self.select_clients()
@@ -1121,6 +1151,7 @@ class Server:
                             self,
                             len(self.updates),
                         )
+                        self.log_updates_to_wandb()
                         await self._process_reports()
                         await self.wrap_up()
                         await self.select_clients()
@@ -1218,15 +1249,33 @@ class Server:
 
         if target_accuracy and self.accuracy >= target_accuracy:
             logging.info("[%s] Target accuracy reached.", self)
+            await self.close_connections()
+            self.do_final_model_validation()
+            self.do_final_model_test()
             await self.close()
 
         if target_perplexity and self.accuracy <= target_perplexity:
             logging.info("[%s] Target perplexity reached.", self)
+            await self.close_connections()
+            self.do_final_model_validation()
+            self.do_final_model_test()
             await self.close()
 
-        if self.current_round >= Config().trainer.rounds:
-            logging.info("Target number of training rounds reached.")
-            await self.close()
+        if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
+            logging.info("{} aggregations performed in {} rounds.".format(self.current_aggregation_count, self.current_round))
+            if self.current_aggregation_count >= Config().trainer.rounds * Config().clients.per_round:
+                logging.info("Target number of aggregations reached.")
+                await self.close_connections()
+                self.do_final_model_validation()
+                self.do_final_model_test()
+                await self.close()
+        else:        
+            if self.current_round >= Config().trainer.rounds:
+                logging.info("Target number of training rounds reached.")
+                await self.close_connections()
+                self.do_final_model_validation()
+                self.do_final_model_test()
+                await self.close()
 
     # pylint: disable=protected-access
     async def close(self):
@@ -1237,7 +1286,10 @@ class Server:
         self.server_will_close()
         self.callback_handler.call_event("on_server_will_close", self)
 
-        await self.close_connections()
+        self.wandb_logger.finish()
+        #wandb.finish()
+        #await self.close_connections()
+
         os._exit(0)
 
     def customize_server_response(self, server_response: dict) -> dict:
@@ -1251,6 +1303,10 @@ class Server:
     @abstractmethod
     async def _process_reports(self) -> None:
         """Process a client report."""
+    
+    @abstractmethod
+    async def _do_async_test(self) -> None:
+        """Process a client report."""
 
     def process_customized_report(self, client_id, checkpoint_path, model_name):
         """Process a customized client report with additional information."""
@@ -1259,3 +1315,242 @@ class Server:
         """
         Method called before closing the server.
         """
+
+    @staticmethod
+    def metric_weighted_averaging(updates):
+        """Compute the weighted average metrics across clients."""
+        # Get total number of samples
+        total_samples = sum(update.report.num_samples for update in updates)
+
+        # Perform weighted averaging
+        auroc = 0
+        accuracy = 0
+        test_loss = 0
+        train_loss = 0
+        precision = 0
+        recall = 0
+        f1 = 0
+        aupr = 0
+        for update in updates:
+            auroc += update.report.auroc * (update.report.num_samples / total_samples)
+            accuracy += update.report.accuracy * (update.report.num_samples / total_samples)
+            test_loss += update.report.validation_loss * (update.report.num_samples / total_samples)
+            train_loss += update.report.train_loss * (update.report.num_samples / total_samples)
+            precision += update.report.precision * (update.report.num_samples / total_samples)
+            recall += update.report.recall * (update.report.num_samples / total_samples)
+            f1 += update.report.f1 * (update.report.num_samples / total_samples)
+            aupr += update.report.aupr * (update.report.num_samples / total_samples)
+
+        return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr
+
+    @staticmethod
+    def metric_averaging(updates):
+        """Compute the average metrics across clients."""
+        # Get total number of clients
+        total_clients = len(updates)
+
+        # Perform averaging
+        auroc = 0
+        accuracy = 0
+        test_loss = 0
+        train_loss = 0
+        precision = 0
+        recall = 0
+        f1 = 0
+        aupr = 0
+        staleness = 0
+        for update in updates:
+            auroc += update.report.auroc / total_clients
+            accuracy += update.report.accuracy / total_clients
+            test_loss += update.report.validation_loss / total_clients
+            train_loss += update.report.train_loss / total_clients
+            precision += update.report.precision / total_clients
+            recall += update.report.recall / total_clients
+            f1 += update.report.f1 / total_clients
+            aupr += update.report.aupr / total_clients
+            if hasattr(Config().clients, "random_staleness"):
+                staleness += update.report.staleness / total_clients
+            else:
+                staleness += update.staleness / total_clients
+
+
+        return auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr, staleness
+
+    def log_updates_to_wandb(self):
+        # Log individual client metrics
+        for update in self.updates:
+            self.log_client_update_to_wandb(update)
+
+        # Log average of client metrics
+        auroc, accuracy, test_loss, train_loss, precision, recall, f1, aupr, staleness = self.metric_averaging(self.updates)
+
+        self.wandb_logger.log({
+            f"aggregations": self.current_aggregation_count,
+            f"round": self.current_round,
+            f"train/avg_loss": train_loss,
+
+            f"val/avg_auroc": auroc,
+            f"val/avg_accuracy": accuracy,
+            f"val/avg_loss": test_loss,
+            f"val/avg_precision": precision,
+            f"val/avg_recall": recall,
+            f"val/avg_f1": f1,
+            f"val/avg_aupr": aupr,
+            f"avg_staleness": staleness,
+            }, step=self.current_round)
+
+        # Log weighted average of client metrics
+        auroc, accuracy, test_loss, \
+        train_loss, precision, recall, f1, aupr = self.metric_weighted_averaging(self.updates)
+        self.wandb_logger.log({
+            f"aggregations": self.current_aggregation_count,
+            f"round": self.current_round,
+            f"train/weighted_avg_loss": train_loss,
+
+            f"val/weighted_avg_auroc": auroc,
+            f"val/weighted_avg_accuracy": accuracy,
+            f"val/weighted_avg_loss": test_loss,
+            f"val/weighted_avg_precision": precision,
+            f"val/weighted_avg_recall": recall,
+            f"val/weighted_avg_f1": f1,
+            f"val/weighted_avg_aupr": aupr,
+        }, step=self.current_round)
+
+
+
+    def log_client_update_to_wandb(self, update):
+        client_id = update.client_id
+        report = update.report
+
+        logging.info("[%s] Logging report from [Client-%d]", self, client_id)
+        if hasattr(update, "staleness"):
+            if hasattr(Config().clients, "random_staleness"):
+                staleness = update.report.staleness
+            else:
+                staleness = update.staleness
+            self.wandb_logger.log({f"client#{client_id}/staleness": staleness, "round": self.current_round}, step=self.current_round)
+
+        for attribute in list(report.__dict__):
+            if attribute == "predictions": continue
+            elif attribute == "staleness": continue
+            else:
+                self.wandb_logger.log({f"client#{client_id}/{attribute}": getattr(report, attribute), "round": self.current_round}, step=self.current_round)
+
+    def do_final_model_validation(self):
+        # Resetting best model metrics before full validation
+        self.best_model_metric = 0
+        self.best_model_round = 0
+        
+        logging.info(f"[{self}] performing and logging final validation of all checkpoints from round 1 to {self.current_round}")
+        if not (hasattr(Config().server, "do_final_validation") and Config().server.do_final_validation):
+            return
+
+        self.wandb_logger.define_metric("val_central/*", "val_central/round")
+
+        # For each round performed we perform validation, log it to wandb and update the best_model_round and best_model_metric
+        for step in range(1, self.current_round + 1):
+            # load model at the steps checkpoint
+            checkpoint_path = Config().params["checkpoint_path"]
+            model_name = Config().trainer.model_name
+            best_model_name = f"checkpoint_{model_name}_{step}.pth"
+            self.trainer.load_model(best_model_name, checkpoint_path)
+
+            # perform validation on the validationset
+            loss, auroc, accuracy, precision, recall, plot_data, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
+
+            # log the results to wandb
+            self.wandb_logger.log({
+                f"round": step,
+                f"aggregations": self.current_aggregation_count_array[step - 1],
+                f"val_central/aggregations": self.current_aggregation_count_array[step - 1],
+                f"val_central/round": step,
+                f"val/central_auroc": auroc,
+                f"val/central_accuracy": accuracy,
+                f"val/central_loss": loss,
+                f"val/central_precision": precision,
+                f"val/central_recall": recall,
+                f"val/central_f1": f1,
+                f"val/central_aupr": aupr
+            })
+
+            # update best round
+            if (Config().data.datasource == "Embryos"):
+                if auroc > self.best_model_metric:
+                    self.best_model_round = step
+                    self.best_model_metric = auroc
+            else:
+                if accuracy > self.best_model_metric:
+                    self.best_model_round = step
+                    self.best_model_metric = accuracy
+
+
+    def do_final_model_test(self):
+        '''
+        1. perform test call to trainer and have the appropriate data returned for logging
+        2. perform said logging to wandb for  visualization
+            - Both plotting auroc, confusion matrix and logging plain data points.
+        '''
+        logging.info("[%s] performing and logging final test of final model", self)
+        if not (hasattr(Config().server, "do_final_test") and Config().server.do_final_test):
+            return
+        else:
+            logging.info(
+                f"[{self}] loading best model from round({self.best_model_round}) with metric({self.best_model_metric})  ", )
+            checkpoint_path = Config().params["checkpoint_path"]
+            model_name = Config().trainer.model_name
+            best_model_name = f"checkpoint_{model_name}_{self.best_model_round}.pth"
+            self.trainer.load_model(best_model_name, checkpoint_path)
+        # 1. 
+            loss, auroc, accuracy, precision, recall, plot_data, f1, aupr = self.trainer.test(self.testset, self.testset_sampler)
+            #print(plot_data)
+        # 2. 
+            #Logging parameters
+            self.wandb_logger.log({"final/central_test_loss": loss})
+            self.wandb_logger.log({"final/central_test_auroc": auroc})
+            self.wandb_logger.log({"final/central_test_accuracy": accuracy})
+            self.wandb_logger.log({"final/central_test_precision": precision})
+            self.wandb_logger.log({"final/central_test_recall": recall})
+            self.wandb_logger.log({"final/central_test_f1": f1})
+            self.wandb_logger.log({"final/central_test_aupr": aupr})
+
+            #logging auroc curve and confusion matrix
+            if Config().data.datasource == "Embryos": 
+                self.wandb_logger.log({"final/roc" : wandb.plot.roc_curve(
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    y_probas=numpy.asarray(plot_data["probabilities"], dtype=numpy.float32), 
+                    labels=["No", "Yes"])})
+                self.wandb_logger.log({"final/conf" : wandb.plot.confusion_matrix(
+                    preds=numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    class_names=["No", "Yes"])})
+                self.wandb_logger.log({"final/conf-sklearn": wandb.sklearn.plot_confusion_matrix(
+                    numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
+                    ["No", "Yes"]
+                )})
+                self.wandb_logger.log({"final/pr": wandb.plot.pr_curve(
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32),
+                    y_probas=numpy.asarray(plot_data["probabilities"], dtype=numpy.float32),
+                    labels=["No", "Yes"])})
+            else:
+                self.wandb_logger.log({"final/roc" : wandb.plot.roc_curve(
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    y_probas=numpy.asarray(plot_data["logits"], dtype=numpy.float32), 
+                    labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])})
+                self.wandb_logger.log({"final/conf" : wandb.plot.confusion_matrix(
+                    preds=numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    class_names=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])})
+                self.wandb_logger.log({"final/conf-sklearn": wandb.sklearn.plot_confusion_matrix(
+                    numpy.asarray(plot_data["labels"], dtype=numpy.float32), 
+                    numpy.asarray(plot_data["predictions"], dtype=numpy.float32), 
+                    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+                )})
+                self.wandb_logger.log({"final/pr": wandb.plot.pr_curve(
+                    y_true=numpy.asarray(plot_data["labels"], dtype=numpy.float32),
+                    y_probas=numpy.asarray(plot_data["logits"], dtype=numpy.float32),
+                    labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])})
+            
+            if not Config().server.synchronous:
+                for clientId in self.client_aggregations.keys():
+                    self.wandb_logger.log({"aggregations/client#{}".format(clientId): self.client_aggregations[clientId]})

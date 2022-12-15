@@ -8,6 +8,7 @@ import logging
 import os
 from collections import OrderedDict, namedtuple
 from typing import Any, IO
+from datetime import datetime
 
 import numpy as np
 import yaml
@@ -34,6 +35,7 @@ class Config:
     """
 
     _instance = None
+    _timestamp = None
 
     @staticmethod
     def construct_include(loader: Loader, node: yaml.Node) -> Any:
@@ -54,6 +56,7 @@ class Config:
 
     def __new__(cls):
         if cls._instance is None:
+            cls._timestamp = "{}".format(datetime.now().strftime("%d/%m/%Y-%H:%M:%S"))
             parser = argparse.ArgumentParser()
             parser.add_argument("-i", "--id", type=str, help="Unique client ID.")
             parser.add_argument(
@@ -187,6 +190,7 @@ class Config:
                 Config.params["model_path"] = os.path.join(
                     Config.params["base_path"], Config().server.model_path
                 )
+                Config.params["model_path"] = os.path.join(Config.params["model_path"], config["parameters"]["experiment_name"])
             else:
                 Config.params["model_path"] = os.path.join(
                     Config.params["base_path"], "models/pretrained"
@@ -198,6 +202,8 @@ class Config:
                 Config.params["checkpoint_path"] = os.path.join(
                     Config.params["base_path"], Config().server.checkpoint_path
                 )
+                Config.params["checkpoint_path"] = os.path.join(Config.params["checkpoint_path"],
+                                                           config["parameters"]["experiment_name"])
             else:
                 Config.params["checkpoint_path"] = os.path.join(
                     Config.params["base_path"], "checkpoints"
@@ -212,6 +218,8 @@ class Config:
                 Config.params["result_path"] = os.path.join(
                     Config.params["base_path"], Config.results.result_path
                 )
+                Config.params["result_path"] = os.path.join(Config.params["result_path"],
+                                                                config["parameters"]["experiment_name"])
             else:
                 Config.params["result_path"] = os.path.join(
                     Config.params["base_path"], "results"
@@ -232,6 +240,11 @@ class Config:
 
             if "parameters" in config:
                 Config.parameters = Config.namedtuple_from_dict(config["parameters"])
+                
+            # Setting the experiment name for wandb logging
+            Config.params["experiment_name"] = cls._timestamp
+            if hasattr(Config, "parameters") and hasattr(Config().parameters, "experiment_name"):
+                Config.params["experiment_name"] = Config().parameters.experiment_name                    
 
         return cls._instance
 

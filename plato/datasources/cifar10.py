@@ -6,7 +6,7 @@ from torchvision import datasets, transforms
 
 from plato.config import Config
 from plato.datasources import base
-
+import torch
 
 class DataSource(base.DataSource):
     """The CIFAR-10 dataset."""
@@ -15,29 +15,24 @@ class DataSource(base.DataSource):
         super().__init__()
         _path = Config().params['data_path']
 
-        train_transform = transforms.Compose([
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop(32, 4),
+        transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+            transforms.Normalize([0.49139968, 0.48215827, 0.44653124], [0.24703233, 0.24348505, 0.26158768])
+                                       ])
 
-        test_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
-
-        self.trainset = datasets.CIFAR10(root=_path,
+        train_dataset = datasets.CIFAR10(root=_path,
                                          train=True,
                                          download=True,
-                                         transform=train_transform)
+                                         transform=transform)
         self.testset = datasets.CIFAR10(root=_path,
                                         train=False,
                                         download=True,
-                                        transform=test_transform)
+                                        transform=transform)
 
-    def num_train_examples(self):
-        return 50000
+        train_len = int(len(train_dataset) * 0.8)
+        validation_len = int(len(train_dataset) - train_len)
 
-    def num_test_examples(self):
-        return 10000
+        self.trainset, self.validationset = torch.utils.data.random_split(train_dataset,
+                                                                          [train_len, validation_len],
+                                                                          generator=torch.Generator().manual_seed(
+                                                                              42))

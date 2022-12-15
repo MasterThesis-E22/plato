@@ -10,10 +10,12 @@ from plato.algorithms import registry as algorithms_registry
 from plato.config import Config
 from plato.datasources import registry as datasources_registry
 from plato.processors import registry as processor_registry
+from plato.samplers.base import DataType
 from plato.servers import base
 from plato.trainers import registry as trainers_registry
 from plato.utils import csv_processor
 from plato.samplers import all_inclusive
+from plato.samplers import registry as samplers_registry
 
 
 class Server(base.Server):
@@ -34,6 +36,8 @@ class Server(base.Server):
         self.custom_datasource = datasource
         self.datasource = None
 
+        self.validationset = None
+        self.validationset_sampler = None
         self.testset = None
         self.testset_sampler = None
         self.total_samples = 0
@@ -96,11 +100,26 @@ class Server(base.Server):
             elif self.datasource is None and self.custom_datasource is not None:
                 self.datasource = self.custom_datasource()
 
-            self.testset = self.datasource.get_test_set()
+            self.validationset = self.datasource.get_validation_set()
             if hasattr(Config().data, "testset_size"):
-                self.testset_sampler = all_inclusive.Sampler(
-                    self.datasource, testing=True
+                self.validationset_sampler = all_inclusive.Sampler(
+                    self.datasource, DataType.Validation
                 )
+        
+        if hasattr(Config().server, "do_final_test") and Config().server.do_final_test:
+            if self.datasource is None and self.custom_datasource is None:
+                self.datasource = datasources_registry.get(client_id=0)
+            elif self.datasource is None and self.custom_datasource is not None:
+                self.datasource = self.custom_datasource()
+            
+            self.testset = self.datasource.get_test_set()
+            self.testset_sampler = all_inclusive.Sampler(
+                self.datasource, 0, DataType.Test)
+            
+            self.validationset = self.datasource.get_validation_set()
+            self.validation_sampler = all_inclusive.Sampler(
+                self.datasource, 0, DataType.Validation)
+
 
         # Initialize the csv file which will record results
         result_csv_file = f"{Config().params['result_path']}/{os.getpid()}.csv"
@@ -117,7 +136,7 @@ class Server(base.Server):
             csv_processor.initialize_csv(
                 client_csv_file, accuracy_headers, Config().params["result_path"]
             )
-
+            
 
     def init_trainer(self):
         """Setting up the global model, trainer, and algorithm."""
@@ -197,17 +216,33 @@ class Server(base.Server):
 
             # Loads the new model weights
             self.algorithm.load_weights(updated_weights)
-
+        
+        # Update the current amount of aggregations
+        self.current_aggregation_count += len(self.updates)
+        self.current_aggregation_count_array.append(self.current_aggregation_count)
+        
         # The model weights have already been aggregated, now calls the
         # corresponding hook and callback
         self.weights_aggregated(self.updates)
         self.callback_handler.call_event("on_weights_aggregated", self, self.updates)
 
-        # Testing the global model accuracy
-        if hasattr(Config().server, "do_test") and not Config().server.do_test:
+        #Testing the global model accuracy
+        if hasattr(Config().server, "do_test") and not Config().server.do_test: # If not doing central testing
             # Compute the average accuracy from client reports
-            self.accuracy, self.test_loss, self.train_loss, self.precision, self.recall = self.metric_averaging(self.updates)
+            self.auroc, self.accuracy, self.test_loss, self.train_loss,\
+            self.precision, self.recall, self.f1, self.aupr = self.metric_weighted_averaging(self.updates)
+            if (Config().data.datasource == "Embryos"):
+                if self.auroc > self.best_model_metric:
+                    self.best_model_round = self.current_round
+                    self.best_model_metric = self.auroc
+            else:
+                if self.accuracy > self.best_model_metric:
+                    self.best_model_round = self.current_round
+                    self.best_model_metric = self.accuracy
 
+            logging.info(
+                "[%s] Average client auroc: %.2f%%.", self, self.auroc
+            )
             logging.info(
                 "[%s] Average client accuracy: %.2f%%.", self, 100 * self.accuracy
             )
@@ -228,10 +263,35 @@ class Server(base.Server):
                 "[%s] Average client recall: %.2f", self, self.recall
             )
 
-        else:
-            # Testing the updated model directly at the server
+        else: # If doing central testing - Testing the updated model directly at the server
 
-            self.accuracy = self.trainer.test(self.testset, self.testset_sampler)
+            if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
+                validation_loss, auroc, accuracy, precision, recall, _, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
+                logging.info(
+                    "[%s] Global model accuracy: %.2f%%\n", self, 100*accuracy
+                )
+                self.wandb_logger.log({
+                f"aggregations": self.current_aggregation_count,
+                f"round": self.current_round,
+                f"val/central_auroc": auroc,
+                f"val/central_accuracy": accuracy,
+                f"val/central_loss": validation_loss,
+                f"val/central_precision": precision,
+                f"val/central_recall": recall,
+                f"val/central_f1": f1,
+                f"val/central_aupr": aupr
+                }, step=self.current_round)
+
+                if (Config().data.datasource == "Embryos"):
+                    if auroc > self.best_model_metric:
+                        self.best_model_round = self.current_round
+                        self.best_model_metric = auroc
+                else:
+                    if accuracy > self.best_model_metric:
+                        self.best_model_round = self.current_round
+                        self.best_model_metric = accuracy
+            else:
+                self.accuracy = self.trainer.test(self.validationset, self.validationset_sampler)
 
         if hasattr(Config().trainer, "target_perplexity"):
             logging.info("[%s] Global model perplexity: %.2f\n", self, self.accuracy)
@@ -241,6 +301,34 @@ class Server(base.Server):
             )
 
         await self.wrap_up_processing_reports()
+        
+    def _do_async_test(self, current_round):
+        if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
+            validation_loss, auroc, accuracy, precision, recall, _, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
+            logging.info(
+                "[%s] Global model accuracy: %.2f%%\n", self, 100*accuracy
+            )
+            self.wandb_logger.log({
+            f"aggregations": self.current_aggregation_count,
+            f"round": current_round,
+            f"val/central_auroc": auroc,
+            f"val/central_accuracy": accuracy,
+            f"val/central_loss": validation_loss,
+            f"val/central_precision": precision,
+            f"val/central_recall": recall,
+            f"val/central_f1": f1,
+            f"val/central_aupr": aupr
+            }, step=current_round)
+
+            if (Config().data.datasource == "Embryos"):
+                if auroc > self.best_model_metric:
+                    self.best_model_round = current_round
+                    self.best_model_metric = auroc
+            else:
+                if accuracy > self.best_model_metric:
+                    self.best_model_round = current_round
+                    self.best_model_metric = accuracy
+            
 
     async def wrap_up_processing_reports(self):
         """Wrap up processing the reports with any additional work."""
@@ -264,7 +352,8 @@ class Server(base.Server):
                     self.current_round,
                     update.client_id,
                     update.report.train_loss,
-                    update.report.test_loss,
+                    update.report.validation_loss,
+                    update.report.auroc,
                     update.report.accuracy,
                     update.report.precision,
                     update.report.recall,
@@ -284,42 +373,11 @@ class Server(base.Server):
             "comm_overhead": self.comm_overhead,
             "train_loss": self.train_loss,
             "test_loss": self.test_loss,
+            "auroc": self.auroc,
             "accuracy": self.accuracy,
             "precision": self.precision,
             "recall": self.recall
         }
-
-    @staticmethod
-    def metric_averaging(updates):
-        """Compute the average accuracy across clients."""
-        # Get total number of samples
-        total_samples = sum(update.report.num_samples for update in updates)
-
-        # Perform weighted averaging
-        accuracy = 0
-        test_loss = 0
-        train_loss = 0
-        precision = 0
-        recall = 0
-        for update in updates:
-            accuracy += update.report.accuracy * (
-                update.report.num_samples / total_samples
-            )
-            test_loss += update.report.test_loss * (
-                update.report.num_samples / total_samples
-            )
-            train_loss += update.report.train_loss * (
-                    update.report.num_samples / total_samples
-            )
-            precision += update.report.precision * (
-                    update.report.num_samples / total_samples
-            )
-            recall += update.report.recall * (
-                    update.report.num_samples / total_samples
-            )
-
-
-        return accuracy, test_loss, train_loss, precision, recall
 
     def weights_received(self, weights_received):
         """
@@ -331,3 +389,4 @@ class Server(base.Server):
         """
         Method called after the updated weights have been aggregated.
         """
+        self.aggregated_updates = updates

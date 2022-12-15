@@ -12,6 +12,7 @@ from plato.config import Config
 from plato.datasources import registry as datasources_registry
 from plato.processors import registry as processor_registry
 from plato.samplers import registry as samplers_registry
+from plato.samplers.base import DataType
 from plato.trainers import registry as trainers_registry
 from plato.utils import fonts
 
@@ -100,13 +101,19 @@ class Client(base.Client):
             self.trainset = self.datasource.get_train_set()
 
         if hasattr(Config().clients, "do_test") and Config().clients.do_test:
-            # Set the testset if local testing is needed
-            self.testset = self.datasource.get_test_set()
+            # Here we load the validation data
+            self.validationset = self.datasource.get_validation_set()
             if hasattr(Config().data, "testset_sampler"):
                 # Set the sampler for test set
-                self.testset_sampler = samplers_registry.get(
-                    self.datasource, self.client_id, testing=True
+                self.validationset_sampler = samplers_registry.get(
+                    self.datasource, self.client_id, DataType.Validation
                 )
+        # calculate client positive rate     
+        if (Config().data.datasource == "Embryos"):
+            self.positive_rate = (len(self.datasource.trainset.data[self.datasource.trainset.data.Label==1])/len(self.datasource.trainset.data))
+            logging.info("[%s] Training set positive rate: %s", self, self.positive_rate)
+        else:
+            self.positive_rate = 0
 
     def load_payload(self, server_payload) -> None:
         """Loads the server model onto this client."""
@@ -119,6 +126,23 @@ class Client(base.Client):
                 f"[{self}] Started training in communication round #{self.current_round}."
             )
         )
+        # performing model testing if applicable
+        if (hasattr(Config().clients, "do_test") and Config().clients.do_test) and (
+            not hasattr(Config().clients, "test_interval")
+            or self.current_round % Config().clients.test_interval == 0
+        ):
+            validation_loss, auroc, accuracy, precision, recall, _, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
+
+            if accuracy == -1:
+                # The testing process failed, disconnect from the server
+                await self.sio.disconnect()
+
+            if hasattr(Config().trainer, "target_perplexity"):
+                logging.info("[%s] Test perplexity: %.2f", self, accuracy)
+            else:
+                logging.info("[%s] Test accuracy: %.2f%%", self, 100 * accuracy)
+        else:
+            accuracy = 0
 
         # Perform model training
         try:
@@ -135,22 +159,22 @@ class Client(base.Client):
         weights = self.algorithm.extract_weights()
 
         # Generate a report for the server, performing model testing if applicable
-        if (hasattr(Config().clients, "do_test") and Config().clients.do_test) and (
-            not hasattr(Config().clients, "test_interval")
-            or self.current_round % Config().clients.test_interval == 0
-        ):
-            test_loss, accuracy, precision, recall = self.trainer.test(self.testset, self.testset_sampler)
-
-            if accuracy == -1:
-                # The testing process failed, disconnect from the server
-                await self.sio.disconnect()
-
-            if hasattr(Config().trainer, "target_perplexity"):
-                logging.info("[%s] Test perplexity: %.2f", self, accuracy)
-            else:
-                logging.info("[%s] Test accuracy: %.2f%%", self, 100 * accuracy)
-        else:
-            accuracy = 0
+        #if (hasattr(Config().clients, "do_test") and Config().clients.do_test) and (
+        #    not hasattr(Config().clients, "test_interval")
+        #    or self.current_round % Config().clients.test_interval == 0
+        #):
+        #    validation_loss, auroc, accuracy, precision, recall, predictions = self.trainer.test(self.testset, self.testset_sampler)
+        #
+        #    if accuracy == -1:
+        #        # The testing process failed, disconnect from the server
+        #        await self.sio.disconnect()
+        #
+        #    if hasattr(Config().trainer, "target_perplexity"):
+        #        logging.info("[%s] Test perplexity: %.2f", self, accuracy)
+        #    else:
+        #        logging.info("[%s] Test accuracy: %.2f%%", self, 100 * accuracy)
+        #else:
+        #    accuracy = 0
 
         comm_time = time.time()
 
@@ -167,15 +191,20 @@ class Client(base.Client):
 
         report = SimpleNamespace(
             num_samples=self.sampler.num_samples(),
+            auroc=auroc,
             accuracy=accuracy,
             training_time=training_time,
             comm_time=comm_time,
             update_response=False,
-            test_loss=test_loss,
+            validation_loss=validation_loss,
             train_loss=train_loss,
             precision=precision,
-            recall=recall
-        )
+            recall=recall,
+            f1=f1,
+            aupr=aupr,
+            staleness=self.staleness,
+            positive_rate=self.positive_rate
+            )
 
         self._report = self.customize_report(report)
 
