@@ -17,7 +17,7 @@ echo "Starting Learning rate experiments"
 echo "=============================================================================================="
 for experiment in ${experiments[@]}; do
     echo "Starting experiment <$experiment>"
-    $base_path/../../venv/bin/python sync_base.py -c $experiment.yml
+    $base_path/../../venv/bin/python sync_base.py -c embryos/$experiment.yml
     echo "Experiment <$experiment> done"
     echo -e "\n\n\n\n\n"
     echo "=============================================================================================="

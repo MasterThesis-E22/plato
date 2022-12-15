@@ -1303,10 +1303,6 @@ class Server:
     @abstractmethod
     async def _process_reports(self) -> None:
         """Process a client report."""
-    
-    @abstractmethod
-    async def _do_async_test(self) -> None:
-        """Process a client report."""
 
     def process_customized_report(self, client_id, checkpoint_path, model_name):
         """Process a customized client report with additional information."""

@@ -301,34 +301,6 @@ class Server(base.Server):
             )
 
         await self.wrap_up_processing_reports()
-        
-    def _do_async_test(self, current_round):
-        if hasattr(Config().server, "synchronous") and not Config().server.synchronous:
-            validation_loss, auroc, accuracy, precision, recall, _, f1, aupr = self.trainer.test(self.validationset, self.validationset_sampler)
-            logging.info(
-                "[%s] Global model accuracy: %.2f%%\n", self, 100*accuracy
-            )
-            self.wandb_logger.log({
-            f"aggregations": self.current_aggregation_count,
-            f"round": current_round,
-            f"val/central_auroc": auroc,
-            f"val/central_accuracy": accuracy,
-            f"val/central_loss": validation_loss,
-            f"val/central_precision": precision,
-            f"val/central_recall": recall,
-            f"val/central_f1": f1,
-            f"val/central_aupr": aupr
-            }, step=current_round)
-
-            if (Config().data.datasource == "Embryos"):
-                if auroc > self.best_model_metric:
-                    self.best_model_round = current_round
-                    self.best_model_metric = auroc
-            else:
-                if accuracy > self.best_model_metric:
-                    self.best_model_round = current_round
-                    self.best_model_metric = accuracy
-            
 
     async def wrap_up_processing_reports(self):
         """Wrap up processing the reports with any additional work."""

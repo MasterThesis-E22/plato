@@ -7,7 +7,7 @@ if [[ -z "$base_path" ]] ; then  # error; for some reason, the path is not acces
 fi
 echo "$base_path"
 
-experiments=("fedavg_cifar10" "fedavg_mnist")
+experiments=("cifar10/fedavg_cifar10" "mnist/fedavg_mnist")
 echo "=============================================================================================="
 echo "Starting Learning rate experiments"
 echo "=============================================================================================="

@@ -391,9 +391,7 @@ class Client:
     def clear_checkpoint_files(self):
         """
         Delete all the temporary checkpoint files created by the client.
-        And finishing wandb log.
         """
-        #wandb.finish()
         if (
             hasattr(Config().server, "request_update")
             and Config().server.request_update

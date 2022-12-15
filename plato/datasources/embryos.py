@@ -10,7 +10,6 @@ import torch
 import numpy
 from torchvision import datasets, transforms
 from sklearn.model_selection import train_test_split
-from imblearn.over_sampling import RandomOverSampler
 from plato.config import Config
 import logging
 
@@ -87,7 +86,6 @@ class DataSource(base.DataSource):
         
         # Splitting train, test and validation data
         meta_data_train_validation = self._meta_data.loc[self._meta_data['Testset'] == 0]
-        #meta_data_train, meta_data_validation = train_test_split(meta_data_train_validation, test_size=0.172, random_state=42)
         meta_data_test = self._meta_data.loc[self._meta_data['Testset'] == 1]
         
         if client_id != 0:
@@ -118,37 +116,14 @@ class DataSource(base.DataSource):
         sortedIds = [x for _,x in sorted(zip(sizes,ids), reverse=True)]
         self.sortedIds = sortedIds
         return sortedIds
-        
 
-    def _load_data(self, meta_data):
-        data = []
-        for index, row in meta_data.iterrows():
-            try:
-                file_path = os.path.join(self._root, "{:05d}.npz".format(row['SampleID']))
-                img = self._load_image(file_path)
-                data.insert(index, img)
-            except:
-                print(f"Cannot load id: {index}")
-                meta_data.drop(index=index, inplace=True)
-        label_tensor = torch.LongTensor(meta_data["Label"].tolist())
-        clinic_ids = np.array(meta_data["LabID"].tolist())
-        return data, label_tensor, clinic_ids
 
 
     def _load_data_type(self, metadata):
-        # Oversample
-        if (self._oversampling):
-            ros = RandomOverSampler(random_state=42)
-            y = self._meta_data_train["Label"].tolist()
-            data, labels = ros.fit_resample(self._meta_data_train, y)
-            labels = torch.LongTensor(labels)
-            clinic_ids = data["LabID"].tolist()
-            clinic_ids = torch.LongTensor(clinic_ids)
-        else:
-            data = metadata
-            labels = data["Label"].tolist()
-            labels = torch.LongTensor(labels)
-            clinic_ids = data["LabID"].tolist()
-            clinic_ids = torch.LongTensor(clinic_ids)        
+        data = metadata
+        labels = data["Label"].tolist()
+        labels = torch.LongTensor(labels)
+        clinic_ids = data["LabID"].tolist()
+        clinic_ids = torch.LongTensor(clinic_ids)
         
         return data, labels, clinic_ids

@@ -8,7 +8,7 @@ import numpy as np
 
 def main():
     
-    random_seed = 69 # or any of your favorite number 
+    random_seed = 69
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True

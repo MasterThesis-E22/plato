@@ -158,24 +158,6 @@ class Client(base.Client):
         # Extract model weights and biases
         weights = self.algorithm.extract_weights()
 
-        # Generate a report for the server, performing model testing if applicable
-        #if (hasattr(Config().clients, "do_test") and Config().clients.do_test) and (
-        #    not hasattr(Config().clients, "test_interval")
-        #    or self.current_round % Config().clients.test_interval == 0
-        #):
-        #    validation_loss, auroc, accuracy, precision, recall, predictions = self.trainer.test(self.testset, self.testset_sampler)
-        #
-        #    if accuracy == -1:
-        #        # The testing process failed, disconnect from the server
-        #        await self.sio.disconnect()
-        #
-        #    if hasattr(Config().trainer, "target_perplexity"):
-        #        logging.info("[%s] Test perplexity: %.2f", self, accuracy)
-        #    else:
-        #        logging.info("[%s] Test accuracy: %.2f%%", self, 100 * accuracy)
-        #else:
-        #    accuracy = 0
-
         comm_time = time.time()
 
         if (
